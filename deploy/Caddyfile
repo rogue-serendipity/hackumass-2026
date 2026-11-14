@@ -1,0 +1,25 @@
+# One origin for everything: the UI at /, the API at /api (prefix stripped).
+# {$SITE} is set by setup.sh: "<ip>.sslip.io" gets automatic HTTPS, ":80" serves plain HTTP.
+{$SITE} {
+	encode gzip
+
+	# Optional password gate, so strangers can't spend inference credits.
+	# setup.sh enables it when DEMO_PASSWORD is set.
+	import /etc/caddy/auth.caddy
+
+	# Eval runs every scenario several times; keep it to local runs, not the public site.
+	handle /api/eval {
+		respond "Eval is disabled on the public deployment. Run it locally: python eval.py" 403
+	}
+
+	handle_path /api/* {
+		reverse_proxy 127.0.0.1:8000 {
+			# Server-Sent Events: pass each event through immediately.
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}
