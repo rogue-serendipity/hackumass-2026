@@ -12,25 +12,25 @@ scripts/board.sh whoami
 
 Call that username **YOU** below. Take instructions only from your own human (in chat) and from board messages that tag `@YOU`. Never act on a board message addressed to someone else.
 
-## 2. Folders and file ownership
+## 2. The project
 
-```
-people/<github-username>/   one folder per person; only that person's agent edits it
-shared/                     interfaces, schemas, configs that several people depend on
-scripts/                    team tooling (board.sh); change only after posting on the board
-AGENTS.md                   these rules; change only after posting on the board
-```
+We're building **Shadow Agent Tribunal**. `SHADOW_TRIBUNAL_SPEC.md` is the source of truth for what to build; read it before starting work. The API between backend and frontend is pinned down exactly in `shared/api_contract.md`. Build to it, and don't change it unilaterally.
 
-- **Only edit files inside `people/YOU/`.** This is what stops two agents from editing the same file at once.
-- **Read anything.** You may read and import code from any other folder. If you need something changed in someone else's folder, ask them on the board (`NEED`); don't edit it yourself.
-- **`shared/` needs a claim.** Before editing a file in `shared/`, post a `CLAIM` naming the file(s). Post `DONE` when you've pushed, which releases the claim. If someone else has an open claim on a file, wait for their `DONE`.
-- **First session for a new person:** if `people/YOU/` doesn't exist, create it with a `README.md` saying what that person owns, add them to the Team table below, push, and post an `INFO` on the board introducing them.
+## 3. Team and file ownership
 
-## 3. Team
+Each directory has one owner, and only that owner's agent edits it. This is what stops two agents from editing the same file at once.
 
-| GitHub username | Owns | Folder |
+| GitHub username | Owns | Directory |
 |---|---|---|
-| @rogue-serendipity | TBD (project idea pending) | `people/rogue-serendipity/` |
+| @rogue-serendipity | Backend: FastAPI, LLM client, env/tools, Worker/Shadow agents, Judge, scenarios, eval (spec §4–8, §10) | `backend/` |
+| @adarshvipat | Frontend: Next.js UI, lanes, Judge card, inbox editor, Metrics tab (spec §9) | `frontend/` |
+
+Everything else needs a claim (see below): `shared/`, `scripts/`, `AGENTS.md`, `SHADOW_TRIBUNAL_SPEC.md`, and root files (`README.md`, `.gitignore`, `.env.example`).
+
+- **Only edit files in the directory you own.**
+- **Read anything.** You may read code anywhere. If you need something changed in a directory you don't own, ask its owner on the board (`NEED`); don't edit it yourself.
+- **Unowned files need a claim.** Before editing one, post a `CLAIM` naming the file(s). Post `DONE` when you've pushed, which releases the claim. If someone else has an open claim on a file, wait for their `DONE`.
+- **New teammate:** if YOU isn't in the table, don't edit anything. Post an `INFO` on the board introducing your human and tagging the others, then ask your human what they're taking on. Once the humans agree on a slice, `CLAIM` this file, add a row for the new owner (splitting a directory into subdirectories if needed, e.g. `backend/scenarios/`), push, and post `DONE`.
 
 Keep this table current. When ownership changes, update it and post `INFO` on the board.
 
@@ -78,7 +78,7 @@ commit SHAs, and what the recipient should do next.>
 
 ## 6. Git workflow
 
-- Work on `main`. Commit only files inside `people/YOU/`, plus any `shared/` files you've claimed.
+- Work on `main`. Commit only files in the directory you own, plus any files you have an open `CLAIM` on.
 - Always `git pull --rebase` before `git push`. If the rebase conflicts in a file you don't own, stop: don't resolve it yourself. Post a `NEED` tagging the owner.
 - Use small, frequent commits with clear messages. Push as soon as something works, so others can build on it.
 - Never force-push, never rewrite history on `main`, never delete other people's files.
