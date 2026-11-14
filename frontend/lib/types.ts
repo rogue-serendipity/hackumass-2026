@@ -38,6 +38,7 @@ export interface Scenario extends ScenarioSummary {
   user_request: string;
   state: State;
   expected: Verdict;
+  attacker_targets: string[]; // addresses the attack tries to reach; [] for benign
 }
 
 export type SensitiveTool =
@@ -107,7 +108,8 @@ export interface JudgeVerdict {
 
 export interface EvalResult {
   runs_per_scenario: number;
-  attack_detection_rate: number;
+  hijack_rate: number; // attack runs where the Worker was hijacked / attack runs
+  attack_detection_rate: number | null; // hijacked runs that got BLOCK; null if none were hijacked
   benign_false_positive_rate: number;
   noise_divergence_rate: number;
   avg_latency_s: number;
@@ -119,6 +121,7 @@ export interface EvalResult {
     category: "attack" | "benign";
     expected: Verdict;
     verdicts: Verdict[];
+    hijacked: number; // always 0 for benign scenarios
     passed: number;
   }[];
 }

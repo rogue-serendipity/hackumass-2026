@@ -31,15 +31,17 @@ function Tile({
   );
 }
 
-function Chip({ verdict, expected }: { verdict: Verdict; expected: Verdict }) {
-  const ok = verdict === expected;
+function Chip({ verdict, expected }: { verdict: Verdict; expected: Verdict | null }) {
+  // `expected` is null for attack scenarios: an APPROVE there is correct when the
+  // Worker resisted, and the per-run verdict alone can't tell the two apart.
+  const ok = expected === null || verdict === expected;
   // Color follows the verdict itself; a miss is marked by the ✕ and an underline.
   return (
     <span
       className={`font-mono text-xs ${verdict === "BLOCK" ? "text-danger" : "text-ok"} ${
         ok ? "" : "font-bold underline decoration-text underline-offset-4"
       }`}
-      title={ok ? "Matches the expected verdict" : `Expected ${expected}`}
+      title={expected === null ? undefined : ok ? "Matches the expected verdict" : `Expected ${expected}`}
     >
       {verdict}
       {!ok && " ✕"}
@@ -75,7 +77,8 @@ export function Metrics() {
         <div className="mr-auto">
           <h2 className="text-2xl font-semibold">Evaluation</h2>
           <p className="text-sm text-dim">
-            Runs every scenario several times and checks each verdict against the expected one.
+            Runs every scenario several times. An attack counts as hijacked when the Worker acts on
+            it; detection is measured over those runs.
           </p>
         </div>
         {loading && (
@@ -102,17 +105,26 @@ export function Metrics() {
 
       {!result && !loading && !error && (
         <p className="rounded-lg border border-dashed border-line bg-panel px-6 py-12 text-center text-dim">
-          No evaluation yet. Run it to see detection and false-positive rates.
+          No evaluation yet. Run it to see hijack, detection and false-positive rates.
         </p>
       )}
 
       {result && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <Tile
-              label="Attacks detected"
-              value={pct(result.attack_detection_rate)}
-              note="Attack runs that ended in BLOCK"
+              label="Hijack rate"
+              value={pct(result.hijack_rate)}
+              note="Attack runs where the Worker acted on the injected instructions"
+            />
+            <Tile
+              label="Hijacks blocked"
+              value={result.attack_detection_rate === null ? "n/a" : pct(result.attack_detection_rate)}
+              note={
+                result.attack_detection_rate === null
+                  ? "No attack hijacked the Worker, so there was nothing to block"
+                  : "Hijacked runs that ended in BLOCK"
+              }
             />
             <Tile
               label="False positives"
@@ -149,7 +161,7 @@ export function Metrics() {
                 <tr className="border-b border-line">
                   <th className="px-4 py-3 font-semibold">Scenario</th>
                   <th className="px-4 py-3 font-semibold">Type</th>
-                  <th className="px-4 py-3 font-semibold">Expected</th>
+                  <th className="px-4 py-3 font-semibold">Hijacked</th>
                   <th className="px-4 py-3 font-semibold">Verdicts</th>
                   <th className="px-4 py-3 text-right font-semibold">Passed</th>
                 </tr>
@@ -164,11 +176,17 @@ export function Metrics() {
                     <td className="px-4 py-3">
                       {s.category}
                     </td>
-                    <td className="px-4 py-3 text-dim">{s.expected}</td>
+                    <td className="px-4 py-3 tabular-nums text-dim">
+                      {s.category === "attack" ? `${s.hijacked}/${s.verdicts.length}` : "–"}
+                    </td>
                     <td className="px-4 py-3">
                       <span className="flex flex-wrap gap-x-3 gap-y-1">
                         {s.verdicts.map((v, i) => (
-                          <Chip key={i} verdict={v} expected={s.expected} />
+                          <Chip
+                            key={i}
+                            verdict={v}
+                            expected={s.category === "attack" ? null : s.expected}
+                          />
                         ))}
                       </span>
                     </td>
