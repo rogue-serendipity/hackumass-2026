@@ -4,6 +4,7 @@ import type {
   JudgeVerdict,
   Lane,
   ProposedAction,
+  Rule,
   RunEvent,
   StepEvent,
   Verdict,
@@ -16,6 +17,8 @@ export interface RunState {
   diff: Diff | null;
   verdict: JudgeVerdict | null;
   committed: ProposedAction[] | null;
+  /** A rule the Patcher learned from this run's BLOCK. */
+  ruleCreated: Rule | null;
   error: string | null;
   /** The inbox exactly as posted with this run; the Judge card highlights in it. */
   sentEmails: Email[];
@@ -37,6 +40,7 @@ export const initialRunState: RunState = {
   diff: null,
   verdict: null,
   committed: null,
+  ruleCreated: null,
   error: null,
   sentEmails: [],
   startedAt: null,
@@ -79,6 +83,8 @@ export function runReducer(state: RunState, action: RunAction): RunState {
       return { ...state, verdict: ev.data };
     case "committed":
       return { ...state, committed: ev.data.actions };
+    case "rule_created":
+      return { ...state, ruleCreated: ev.data.rule };
     case "error":
       // Keep the first error: it's the cause; later ones are usually fallout.
       return { ...state, error: state.error ?? ev.data.message };
@@ -151,6 +157,12 @@ export function deriveCardStatuses(
     if (out[k]) out[k] = { ...out[k], committed: true };
   }
   return out;
+}
+
+/** The Patcher rule that auto-blocked this run before the agents ran, if any. */
+export function autoBlockedBy(state: Pick<RunState, "verdict">): number | null {
+  const v = state.verdict;
+  return v?.source === "rule" ? (v.rule_id ?? 0) : null;
 }
 
 export type Phase =

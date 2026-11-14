@@ -5,6 +5,7 @@ import * as mock from "./mock";
 import {
   RUN_EVENT_NAMES,
   type EvalResult,
+  type Rule,
   type RunEvent,
   type RunOverrides,
   type Scenario,
@@ -56,6 +57,16 @@ export function startRun(body: {
   overrides?: RunOverrides;
 }): Promise<{ run_id: string }> {
   return USE_MOCK ? mock.startRun(body) : request("/run", post(body));
+}
+
+/** Rules the Patcher has learned so far (in memory on the backend). */
+export function getRules(): Promise<Rule[]> {
+  return USE_MOCK ? mock.getRules() : request("/rules");
+}
+
+/** Forget every learned rule. Part of the demo reset. */
+export function clearRules(): Promise<{ cleared: boolean }> {
+  return USE_MOCK ? mock.clearRules() : request("/rules", { method: "DELETE" });
 }
 
 export function runEval(runs?: number): Promise<EvalResult> {

@@ -92,7 +92,7 @@ export interface Diff {
 
 export interface JudgeVerdict {
   verdict: Verdict;
-  source: "fast_path" | "llm";
+  source: "fast_path" | "llm" | "rule"; // rule = auto-blocked by a Patcher rule; agents never ran
   per_action: {
     action_index: number; // index into diff.worker_only
     decision: Verdict;
@@ -104,6 +104,17 @@ export interface JudgeVerdict {
   culprit_email_id: string | null;
   culprit_quote: string | null;
   explanation: string;
+  rule_id?: number | null; // the Patcher rule that auto-blocked this run (source == "rule")
+}
+
+/** A rule the Patcher learned from a BLOCK. Reruns that match it are auto-blocked. */
+export interface Rule {
+  id: number; // "rule #1" in the UI
+  pattern_description: string;
+  match_terms: string[];
+  blocked_tool: SensitiveTool;
+  source_scenario: string;
+  source_email_id: string;
 }
 
 export interface EvalResult {
@@ -133,6 +144,7 @@ export type RunEvent =
   | { event: "diff"; data: Diff }
   | { event: "verdict"; data: JudgeVerdict }
   | { event: "committed"; data: { actions: ProposedAction[] } }
+  | { event: "rule_created"; data: { rule: Rule } }
   | { event: "error"; data: { message: string } }
   | { event: "end"; data: Record<string, never> };
 
@@ -142,6 +154,7 @@ export const RUN_EVENT_NAMES = [
   "diff",
   "verdict",
   "committed",
+  "rule_created",
   "error",
   "end",
 ] as const;

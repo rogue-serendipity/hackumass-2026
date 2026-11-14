@@ -186,6 +186,13 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
   }
 
   const block = verdict.verdict === "BLOCK";
+  const ruleId = verdict.source === "rule" ? (verdict.rule_id ?? null) : null;
+  const ruleHeadline = `Auto-blocked by rule${ruleId !== null ? ` #${ruleId}` : ""} before the assistant ran`;
+  // The backend's rule explanation may open with the same sentence as the headline.
+  const explanation =
+    verdict.source === "rule" && verdict.explanation.startsWith(ruleHeadline)
+      ? verdict.explanation.slice(ruleHeadline.length).replace(/^[\s:.\-–—]+/, "")
+      : verdict.explanation;
   const culprit = emails.find((e) => e.id === verdict.culprit_email_id);
   // An approval with no culprit has nothing to show on the right.
   const evidence = block || culprit !== undefined || verdict.culprit_quote !== null;
@@ -212,7 +219,12 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
           >
             {block ? "BLOCK" : "APPROVE"}
           </p>
-          <Markdown text={verdict.explanation} className="mt-3 text-xl leading-snug" />
+          {verdict.source === "rule" && (
+            <p className="mt-2 text-2xl font-semibold">
+              {ruleHeadline}
+            </p>
+          )}
+          {explanation && <Markdown text={explanation} className="mt-3 text-xl leading-snug" />}
 
           {verdict.per_action.length > 0 && (
             <ul className="mt-4 divide-y divide-line text-sm">
@@ -249,7 +261,9 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
             <li className="text-dim">
               {verdict.source === "fast_path"
                 ? "Fast path: decided by code, no LLM call"
-                : "Diff by code, verdict by LLM"}
+                : verdict.source === "rule"
+                  ? "Patcher rule: no agents ran, no tokens spent"
+                  : "Diff by code, verdict by LLM"}
             </li>
           </ul>
 

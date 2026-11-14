@@ -15,6 +15,8 @@ interface Props {
   done: boolean;
   startedAt: number | null;
   doneAt: number | null;
+  /** Set when a Patcher rule blocked the run, so this lane never ran. */
+  skippedByRule?: number | null;
 }
 
 const COPY: Record<LaneName, { title: string; sub: string; tone: string; dot: string }> = {
@@ -55,7 +57,7 @@ function toCards(steps: StepEvent[]): Card[] {
   return cards;
 }
 
-export function Lane({ lane, steps, statuses, runStatus, done, startedAt, doneAt }: Props) {
+export function Lane({ lane, steps, statuses, runStatus, done, startedAt, doneAt, skippedByRule = null }: Props) {
   const copy = COPY[lane];
   const cards = toCards(steps);
   const scroller = useRef<HTMLOListElement>(null);
@@ -74,7 +76,8 @@ export function Lane({ lane, steps, statuses, runStatus, done, startedAt, doneAt
   }, [steps.length]);
 
   let status = "";
-  if (working) status = startedAt ? `Working… ${seconds(now - startedAt)}` : "Working…";
+  if (skippedByRule !== null) status = "Skipped";
+  else if (working) status = startedAt ? `Working… ${seconds(now - startedAt)}` : "Working…";
   else if (done) status = startedAt && doneAt ? `Finished in ${seconds(doneAt - startedAt, true)}` : "Finished";
   else if (runStatus === "done") status = "Stopped";
 
@@ -95,7 +98,9 @@ export function Lane({ lane, steps, statuses, runStatus, done, startedAt, doneAt
       >
         {cards.length === 0 && (
           <li className="m-auto text-sm text-dim">
-            {running
+            {skippedByRule !== null
+              ? `Skipped: rule${skippedByRule ? ` #${skippedByRule}` : ""} blocked this inbox before the agents ran.`
+              : running
               ? "Starting…"
               : runStatus === "done"
                 ? "No steps before the run stopped."

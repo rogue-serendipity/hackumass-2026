@@ -6,10 +6,25 @@ import { JudgeCard } from "@/components/JudgeCard";
 import { Lane } from "@/components/Lane";
 import { Metrics } from "@/components/Metrics";
 import { RequestBox } from "@/components/RequestBox";
+import { LearnedRule, RulesList } from "@/components/Rules";
 import { TopBar, type Tab } from "@/components/TopBar";
-import { USE_MOCK, getScenario, getScenarios, openRunStream, startRun } from "@/lib/api";
-import { deriveCardStatuses, initialRunState, phaseOf, runReducer } from "@/lib/runReducer";
-import type { Email, Scenario, ScenarioSummary } from "@/lib/types";
+import {
+  USE_MOCK,
+  clearRules,
+  getRules,
+  getScenario,
+  getScenarios,
+  openRunStream,
+  startRun,
+} from "@/lib/api";
+import {
+  autoBlockedBy,
+  deriveCardStatuses,
+  initialRunState,
+  phaseOf,
+  runReducer,
+} from "@/lib/runReducer";
+import type { Email, Rule, Scenario, ScenarioSummary } from "@/lib/types";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -23,6 +38,8 @@ export default function Home() {
   const [inboxOpen, setInboxOpen] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [run, dispatch] = useReducer(runReducer, initialRunState);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [clearingRules, setClearingRules] = useState(false);
 
   const closeStream = useRef<(() => void) | null>(null);
   // Bumped whenever the current run or scenario is superseded, so late async
@@ -71,15 +88,45 @@ export default function Home() {
     }
   }, [selectScenario]);
 
+  // The rules list is a side panel: if the backend can't list them, just show none.
+  const refreshRules = useCallback(async () => {
+    try {
+      setRules(await getRules());
+    } catch {
+      setRules([]);
+    }
+  }, []);
+
+  async function forgetRules() {
+    setClearingRules(true);
+    try {
+      await clearRules();
+    } catch {
+      // Refresh below shows whatever the backend still has.
+    } finally {
+      await refreshRules();
+      setClearingRules(false);
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch; state is set after the await
     void loadScenarios();
+    void refreshRules();
     return () => closeStream.current?.();
-  }, [loadScenarios]);
+  }, [loadScenarios, refreshRules]);
+
+  // A finished run may have taught the Patcher a rule.
+  const runDone = run.status === "done";
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch; state is set after the await
+    if (runDone) void refreshRules();
+  }, [runDone, refreshRules]);
 
   /** Back to a clean slate for the next person: no run, original request and inbox. */
   function resetDemo() {
     stopRun();
+    void forgetRules();
     if (scenario) {
       setRequest(scenario.user_request);
       setEmails(scenario.state.inbox);
@@ -128,6 +175,7 @@ export default function Home() {
   const running = run.status === "running";
   const phase = phaseOf(run);
   const canRun = scenario !== null && request.trim() !== "";
+  const skippedByRule = autoBlockedBy(run);
 
   return (
     <>
@@ -192,6 +240,7 @@ export default function Home() {
               done={run.laneDone.worker}
               startedAt={run.startedAt}
               doneAt={run.laneDoneAt.worker}
+              skippedByRule={skippedByRule}
             />
             <Lane
               lane="shadow"
@@ -201,6 +250,7 @@ export default function Home() {
               done={run.laneDone.shadow}
               startedAt={run.startedAt}
               doneAt={run.laneDoneAt.shadow}
+              skippedByRule={skippedByRule}
             />
           </div>
 
@@ -215,6 +265,9 @@ export default function Home() {
               canRetry={canRun}
             />
           </div>
+
+          {run.ruleCreated && <LearnedRule rule={run.ruleCreated} />}
+          <RulesList rules={rules} onClear={forgetRules} clearing={clearingRules} />
         </div>
 
         <div hidden={tab !== "metrics"}>
