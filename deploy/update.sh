@@ -10,4 +10,4 @@ sudo -u "$RUN_USER" "$APP/backend/.venv/bin/pip" install -q -r "$APP/backend/req
 sudo -u "$RUN_USER" bash -c "cd $APP/frontend && npm ci --no-audit --no-fund && NEXT_PUBLIC_API_BASE=/api npm run build"
 install -m 644 "$APP/deploy/Caddyfile" /etc/caddy/Caddyfile
 systemctl restart tribunal-backend tribunal-frontend caddy
-echo "Updated to $(git -C "$APP" log --oneline -1)"
+echo "Updated to $(sudo -u "$RUN_USER" git -C "$APP" log --oneline -1)"
