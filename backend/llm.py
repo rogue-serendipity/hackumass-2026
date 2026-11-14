@@ -20,7 +20,8 @@ load_dotenv(Path(__file__).parent / ".env")
 def env(name: str, default: str | None = None) -> str:
     value = os.getenv(name) or default
     if not value:
-        sys.exit(f"Missing {name}: set it in backend/.env (see backend/.env.example)")
+        # Not sys.exit: inside the API server that would kill uvicorn instead of failing one run.
+        raise RuntimeError(f"Missing {name}: set it in backend/.env (see backend/.env.example)")
     return value
 
 
@@ -99,4 +100,7 @@ async def _smoke_test(model: str | None) -> None:
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(_smoke_test(sys.argv[1] if len(sys.argv) > 1 else None))
+    try:
+        asyncio.run(_smoke_test(sys.argv[1] if len(sys.argv) > 1 else None))
+    except RuntimeError as exc:
+        sys.exit(str(exc))
