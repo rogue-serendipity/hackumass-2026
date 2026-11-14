@@ -101,7 +101,7 @@ export function InboxEditor({
                 disabled={disabled}
                 className="rounded-xs border border-line px-3 py-1.5 text-dim hover:text-text disabled:opacity-50"
               >
-                Reset
+                Reset emails
               </button>
             )}
             <button

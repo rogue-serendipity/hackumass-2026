@@ -19,11 +19,15 @@ export interface RunState {
   error: string | null;
   /** The inbox exactly as posted with this run; the Judge card highlights in it. */
   sentEmails: Email[];
+  /** Wall-clock ms (Date.now()) for the run's milestones, for elapsed-time display. */
+  startedAt: number | null;
+  laneDoneAt: Record<Lane, number | null>;
+  endedAt: number | null;
 }
 
 export type RunAction =
-  | { type: "start"; emails: Email[] }
-  | { type: "event"; ev: RunEvent }
+  | { type: "start"; emails: Email[]; at?: number }
+  | { type: "event"; ev: RunEvent; at?: number }
   | { type: "reset" };
 
 export const initialRunState: RunState = {
@@ -35,17 +39,26 @@ export const initialRunState: RunState = {
   committed: null,
   error: null,
   sentEmails: [],
+  startedAt: null,
+  laneDoneAt: { worker: null, shadow: null },
+  endedAt: null,
 };
 
 export function runReducer(state: RunState, action: RunAction): RunState {
   if (action.type === "reset") return initialRunState;
   if (action.type === "start") {
-    return { ...initialRunState, status: "running", sentEmails: action.emails };
+    return {
+      ...initialRunState,
+      status: "running",
+      sentEmails: action.emails,
+      startedAt: action.at ?? Date.now(),
+    };
   }
   // Events from a stream that was already closed or replaced are dropped.
   if (state.status !== "running") return state;
 
   const { ev } = action;
+  const at = action.at ?? Date.now();
   switch (ev.event) {
     case "step": {
       const lane = ev.data.lane;
@@ -58,6 +71,7 @@ export function runReducer(state: RunState, action: RunAction): RunState {
       return {
         ...state,
         laneDone: { ...state.laneDone, [ev.data.lane]: true },
+        laneDoneAt: { ...state.laneDoneAt, [ev.data.lane]: at },
       };
     case "diff":
       return { ...state, diff: ev.data };
@@ -66,9 +80,10 @@ export function runReducer(state: RunState, action: RunAction): RunState {
     case "committed":
       return { ...state, committed: ev.data.actions };
     case "error":
-      return { ...state, error: ev.data.message };
+      // Keep the first error: it's the cause; later ones are usually fallout.
+      return { ...state, error: state.error ?? ev.data.message };
     case "end":
-      return { ...state, status: "done" };
+      return { ...state, status: "done", endedAt: at };
   }
 }
 

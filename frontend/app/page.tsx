@@ -77,11 +77,23 @@ export default function Home() {
     return () => closeStream.current?.();
   }, [loadScenarios]);
 
+  /** Back to a clean slate for the next person: no run, original request and inbox. */
+  function resetDemo() {
+    stopRun();
+    if (scenario) {
+      setRequest(scenario.user_request);
+      setEmails(scenario.state.inbox);
+    }
+    setInboxOpen(true);
+    setTab("tribunal");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function handleRun() {
     if (!scenario || run.status === "running") return;
     stopRun();
     const mine = generation.current;
-    dispatch({ type: "start", emails });
+    dispatch({ type: "start", emails, at: Date.now() });
     setInboxOpen(false);
     requestAnimationFrame(() =>
       lanes.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
@@ -94,7 +106,7 @@ export default function Home() {
       });
       if (generation.current !== mine) return;
       closeStream.current = openRunStream(run_id, (ev) => {
-        if (generation.current === mine) dispatch({ type: "event", ev });
+        if (generation.current === mine) dispatch({ type: "event", ev, at: Date.now() });
       });
     } catch (e) {
       if (generation.current !== mine) return;
@@ -115,6 +127,7 @@ export default function Home() {
   );
   const running = run.status === "running";
   const phase = phaseOf(run);
+  const canRun = scenario !== null && request.trim() !== "";
 
   return (
     <>
@@ -126,7 +139,9 @@ export default function Home() {
         onSelect={selectScenario}
         onRun={handleRun}
         running={running}
-        canRun={scenario !== null && request.trim() !== ""}
+        canRun={canRun}
+        onReset={resetDemo}
+        canReset={scenario !== null}
         mock={USE_MOCK}
       />
 
@@ -168,34 +183,37 @@ export default function Home() {
             />
           )}
 
-          {run.error && (
-            <p
-              role="alert"
-              className="rounded-xs border border-line bg-raised px-4 py-3 text-sm"
-            >
-              The run failed: {run.error}
-            </p>
-          )}
-
           <div ref={lanes} className="grid scroll-mt-20 gap-4 lg:grid-cols-2">
             <Lane
               lane="worker"
               steps={run.steps.worker}
               statuses={statuses}
-              running={running}
+              runStatus={run.status}
               done={run.laneDone.worker}
+              startedAt={run.startedAt}
+              doneAt={run.laneDoneAt.worker}
             />
             <Lane
               lane="shadow"
               steps={run.steps.shadow}
               statuses={statuses}
-              running={running}
+              runStatus={run.status}
               done={run.laneDone.shadow}
+              startedAt={run.startedAt}
+              doneAt={run.laneDoneAt.shadow}
             />
           </div>
 
           <div ref={judge} className="scroll-mb-4">
-            <JudgeCard phase={phase} diff={run.diff} verdict={run.verdict} emails={run.sentEmails} />
+            <JudgeCard
+              phase={phase}
+              diff={run.diff}
+              verdict={run.verdict}
+              emails={run.sentEmails}
+              run={run}
+              onRetry={handleRun}
+              canRetry={canRun}
+            />
           </div>
         </div>
 

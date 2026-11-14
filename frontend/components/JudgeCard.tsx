@@ -1,7 +1,18 @@
-import { Tag } from "./Tag";
+"use client";
+
+import {
+  ArrowClockwiseIcon,
+  CheckIcon,
+  CircleNotchIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
+import { describeError } from "@/lib/errors";
 import { splitAroundQuote } from "@/lib/highlight";
-import type { Phase } from "@/lib/runReducer";
+import type { Phase, RunState } from "@/lib/runReducer";
 import type { Diff, Email, JudgeVerdict } from "@/lib/types";
+import { seconds, useNow } from "@/lib/useNow";
+import { Markdown } from "./Markdown";
+import { Tag } from "./Tag";
 
 interface Props {
   phase: Phase;
@@ -9,14 +20,113 @@ interface Props {
   verdict: JudgeVerdict | null;
   /** The inbox as it was sent with this run. */
   emails: Email[];
+  run: Pick<RunState, "startedAt" | "laneDone" | "error">;
+  onRetry: () => void;
+  canRetry: boolean;
 }
 
-const WAITING: Record<Exclude<Phase, "done">, string> = {
-  idle: "The Judge compares the two lanes and rules here.",
-  agents: "Waiting for both agents to finish…",
-  diffing: "Comparing the two action traces…",
-  judging: "The Worker did something the Shadow didn't. The Judge is deciding…",
-};
+/** Real runs take 5–9 s; past this, say why it might be slow. */
+const SLOW_MS = 20_000;
+
+const STAGES = [
+  { phase: "agents", label: "Agents run" },
+  { phase: "diffing", label: "Compare traces" },
+  { phase: "judging", label: "Judge decides" },
+] as const;
+
+function waitingText(phase: Phase, laneDone: RunState["laneDone"]): string {
+  switch (phase) {
+    case "agents":
+      if (laneDone.worker) return "The Worker finished. Waiting for the Shadow…";
+      if (laneDone.shadow) return "The Shadow finished. Waiting for the Worker…";
+      return "Both agents are working through the inbox…";
+    case "diffing":
+      return "Comparing what the two agents tried to do…";
+    case "judging":
+      return "The Worker did something the Shadow didn't. The Judge is deciding…";
+    default:
+      return "Hit Run. The Judge compares the two lanes and rules here.";
+  }
+}
+
+function Waiting({ phase, run }: Pick<Props, "phase" | "run">) {
+  const active = phase !== "idle" && phase !== "done";
+  const now = useNow(active);
+  const elapsed = run.startedAt ? now - run.startedAt : 0;
+  const current = STAGES.findIndex((s) => s.phase === phase);
+
+  return (
+    <section
+      aria-label="Judge"
+      className="rounded-lg border border-dashed border-line bg-panel px-6 py-6"
+    >
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <p className="font-mono text-sm font-semibold uppercase tracking-wider text-dim">Judge</p>
+        {active && (
+          <ol className="flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-sm">
+            {STAGES.map((s, i) => (
+              <li
+                key={s.phase}
+                className={`flex items-center gap-1.5 ${i === current ? "text-text" : "text-dim"}`}
+              >
+                {i < current ? (
+                  <CheckIcon weight="bold" aria-hidden />
+                ) : i === current ? (
+                  <CircleNotchIcon weight="bold" aria-hidden className="motion-safe:animate-spin" />
+                ) : (
+                  <span aria-hidden className="h-1.5 w-1.5 rounded-full border border-dim" />
+                )}
+                {s.label}
+              </li>
+            ))}
+          </ol>
+        )}
+        {active && (
+          <span className="ml-auto font-mono text-sm tabular-nums text-dim">{seconds(elapsed)}</span>
+        )}
+      </div>
+      <p className={`mt-3 text-xl ${active ? "text-text" : "text-dim"}`} aria-live="polite">
+        {waitingText(phase, run.laneDone)}
+      </p>
+      {active && elapsed > SLOW_MS && (
+        <p className="mt-2 text-sm text-dim">
+          Slower than usual. The model provider may be queueing requests; it usually catches up.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function Failed({ error, onRetry, canRetry }: { error: string; onRetry: () => void; canRetry: boolean }) {
+  const { title, hint } = describeError(error);
+  return (
+    <section
+      aria-label="Judge"
+      role="alert"
+      className="rounded-lg border border-line bg-panel px-6 py-6"
+    >
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
+        <WarningCircleIcon aria-hidden className="mt-1 shrink-0 text-2xl text-text" />
+        <div className="mr-auto min-w-0">
+          <p className="text-2xl font-semibold">{title}</p>
+          <p className="mt-1 text-lg text-dim">{hint}</p>
+          <p className="mt-3 line-clamp-3 break-words font-mono text-sm text-dim" title={error}>
+            {error}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={!canRetry}
+          className="flex h-10 items-center gap-2 rounded-xs bg-worker px-5 text-sm font-semibold text-ink transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <ArrowClockwiseIcon weight="bold" aria-hidden />
+          Run again
+        </button>
+      </div>
+    </section>
+  );
+}
 
 function Flag({ label, value }: { label: string; value: boolean | null }) {
   if (value === null) return null;
@@ -62,22 +172,17 @@ function Culprit({ email, quote }: { email: Email; quote: string | null }) {
   );
 }
 
-export function JudgeCard({ phase, diff, verdict, emails }: Props) {
+export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry }: Props) {
   if (!verdict) {
-    const waiting = phase === "done" ? "The run ended without a verdict." : WAITING[phase];
-    const active = phase !== "idle" && phase !== "done";
-    return (
-      <section
-        aria-label="Judge"
-        aria-live="polite"
-        className="rounded-lg border border-dashed border-line bg-panel px-6 py-8 text-center"
-      >
-        <p className="text-xs font-semibold font-mono uppercase tracking-wider text-dim">Judge</p>
-        <p className={`mt-2 text-lg ${active ? "animate-pulse text-text" : "text-dim"}`}>
-          {waiting}
-        </p>
-      </section>
-    );
+    if (phase === "done")
+      return (
+        <Failed
+          error={run.error ?? "The run ended without a verdict."}
+          onRetry={onRetry}
+          canRetry={canRetry}
+        />
+      );
+    return <Waiting phase={phase} run={run} />;
   }
 
   const block = verdict.verdict === "BLOCK";
@@ -107,7 +212,7 @@ export function JudgeCard({ phase, diff, verdict, emails }: Props) {
           >
             {block ? "BLOCK" : "APPROVE"}
           </p>
-          <p className="mt-3 text-xl leading-snug">{verdict.explanation}</p>
+          <Markdown text={verdict.explanation} className="mt-3 text-xl leading-snug" />
 
           {verdict.per_action.length > 0 && (
             <ul className="mt-4 divide-y divide-line text-sm">
@@ -128,7 +233,7 @@ export function JudgeCard({ phase, diff, verdict, emails }: Props) {
                         hard rule
                       </Tag>
                     )}
-                    <span className="text-dim">{p.reason}</span>
+                    <Markdown text={p.reason} className="mt-1 text-dim" />
                   </li>
                 );
               })}
@@ -147,6 +252,15 @@ export function JudgeCard({ phase, diff, verdict, emails }: Props) {
                 : "Diff by code, verdict by LLM"}
             </li>
           </ul>
+
+          {run.error && (
+            <p role="alert" className="mt-4 flex items-start gap-2 text-sm text-dim">
+              <WarningCircleIcon aria-hidden className="mt-0.5 shrink-0" />
+              <span>
+                Something failed after the verdict: <span className="font-mono">{run.error}</span>
+              </span>
+            </p>
+          )}
         </div>
 
         {culprit ? (

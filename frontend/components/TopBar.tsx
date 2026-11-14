@@ -1,4 +1,4 @@
-import { PlayIcon } from "@phosphor-icons/react";
+import { ArrowCounterClockwiseIcon, PlayIcon } from "@phosphor-icons/react";
 import { Tag } from "./Tag";
 import type { ScenarioSummary } from "@/lib/types";
 
@@ -13,6 +13,9 @@ interface Props {
   onRun: () => void;
   running: boolean;
   canRun: boolean;
+  /** Clear the run and restore the scenario's original request and inbox. */
+  onReset: () => void;
+  canReset: boolean;
   mock: boolean;
 }
 
@@ -25,6 +28,8 @@ export function TopBar({
   onRun,
   running,
   canRun,
+  onReset,
+  canReset,
   mock,
 }: Props) {
   const selected = scenarios.find((s) => s.id === selectedId);
@@ -92,6 +97,16 @@ export function TopBar({
                   ),
               )}
             </select>
+            <button
+              type="button"
+              onClick={onReset}
+              disabled={!canReset}
+              title="Clear the run and restore this scenario's original request and emails"
+              className="flex h-10 items-center gap-2 rounded-xs border border-line px-4 text-sm font-medium text-dim transition-colors hover:border-dim hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ArrowCounterClockwiseIcon weight="bold" aria-hidden />
+              Reset demo
+            </button>
             <button
               type="button"
               onClick={onRun}
