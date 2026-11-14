@@ -15,14 +15,15 @@ from judge import diff, judge
 from llm import Usage, make_client
 from models import Diff, JudgeVerdict, Lane, ProposedAction, Scenario
 
-_client: AsyncOpenAI | None = None
+_clients: dict[int, AsyncOpenAI] = {}
 
 
 def client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
-        _client = make_client()
-    return _client
+    """One client per event loop: an AsyncOpenAI client can't be reused across asyncio.run() calls."""
+    loop = id(asyncio.get_running_loop())
+    if loop not in _clients:
+        _clients[loop] = make_client()
+    return _clients[loop]
 
 
 async def _ignore(event: str, data: dict) -> None:
