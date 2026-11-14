@@ -75,6 +75,14 @@ export function Lane({ lane, steps, statuses, runStatus, done, startedAt, doneAt
     el.scrollTo({ top, behavior: "smooth" });
   }, [steps.length]);
 
+  // Once the diff is in, the card the audience needs to see is the one only the
+  // Worker proposed, not the final summary. Scroll back up to it.
+  useEffect(() => {
+    const el = scroller.current;
+    const card = el?.querySelector<HTMLElement>("[data-divergent]");
+    if (el && card) el.scrollTo({ top: card.offsetTop - 12, behavior: "smooth" });
+  }, [statuses]);
+
   let status = "";
   if (skippedByRule !== null) status = "Skipped";
   else if (working) status = startedAt ? `Working… ${seconds(now - startedAt)}` : "Working…";

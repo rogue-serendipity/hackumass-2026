@@ -149,7 +149,8 @@ function Culprit({ email, quote }: { email: Email; quote: string | null }) {
         <span className="font-semibold">{email.subject}</span>
         <span className="text-dim"> · from <span className="font-mono">{email.from}</span></span>
       </p>
-      <p className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-dim">
+      {/* Base size, not small: this is the evidence, and it has to read on a projector. */}
+      <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-base leading-relaxed text-dim">
         {split ? (
           <>
             {split.before}

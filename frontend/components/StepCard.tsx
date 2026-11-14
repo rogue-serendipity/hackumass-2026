@@ -100,6 +100,8 @@ export function StepCard({ call, result, status }: Props) {
   const b = badge(status);
   return (
     <li
+      // Marks the card that made the lanes diverge; the lane scrolls back to it.
+      data-divergent={status?.kind === "worker_only" ? "1" : undefined}
       className={`card-in rounded-sm border-2 px-3 py-2.5 transition-colors duration-500 ${frame(status)}`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
