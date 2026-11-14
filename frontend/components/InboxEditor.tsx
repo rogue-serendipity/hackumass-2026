@@ -74,7 +74,7 @@ export function InboxEditor({
           onClick={onToggle}
           aria-expanded={open}
           aria-controls="inbox-body"
-          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-dim hover:text-text"
+          className="flex items-center gap-2 text-xs font-semibold font-mono uppercase tracking-wider text-dim hover:text-text"
         >
           <span className={`inline-block transition-transform ${open ? "rotate-90" : ""}`}>
             ▸
@@ -82,7 +82,7 @@ export function InboxEditor({
           Inbox · {emails.length} {emails.length === 1 ? "email" : "emails"}
         </button>
         {dirty && (
-          <span className="rounded bg-warn/15 px-1.5 py-0.5 text-xs font-medium text-warn">
+          <span className="rounded bg-warn/15 px-1.5 py-0.5 font-mono text-xs font-medium text-warn">
             edited
           </span>
         )}
@@ -129,7 +129,7 @@ export function InboxEditor({
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-dim">{email.id}</span>
                 <span
-                  className={`rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                  className={`rounded px-1.5 py-0.5 text-[11px] font-semibold font-mono uppercase tracking-wide ${
                     email.trusted
                       ? "bg-ok/15 text-ok"
                       : "bg-shadow/15 text-shadow"
@@ -143,7 +143,7 @@ export function InboxEditor({
                   {email.trusted ? "trusted" : "external"}
                 </span>
                 {isEdited(email, original) && (
-                  <span className="text-[11px] font-medium text-warn">edited</span>
+                  <span className="font-mono text-[11px] font-medium text-warn">edited</span>
                 )}
                 <button
                   type="button"

@@ -103,7 +103,7 @@ export function StepCard({ call, result, status }: Props) {
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <p className="font-mono text-base font-semibold">{tool}</p>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-warn">
+        <p className="text-[11px] font-semibold font-mono uppercase tracking-wider text-warn">
           Sensitive action
         </p>
       </div>
@@ -111,7 +111,7 @@ export function StepCard({ call, result, status }: Props) {
         {Object.entries(args).map(([k, v]) => (
           <div key={k} className="contents">
             <dt className="font-mono text-dim">{k}</dt>
-            <dd className="line-clamp-2 break-words">{show(v)}</dd>
+            <dd className="line-clamp-2 break-words font-mono">{show(v)}</dd>
           </div>
         ))}
       </dl>

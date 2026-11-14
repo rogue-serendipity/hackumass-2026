@@ -24,7 +24,7 @@ function Tile({
 }) {
   return (
     <div className="rounded-xl border border-line bg-panel p-5">
-      <p className="text-xs font-semibold uppercase tracking-wider text-dim">{label}</p>
+      <p className="text-xs font-semibold font-mono uppercase tracking-wider text-dim">{label}</p>
       <p className={`mt-2 text-5xl font-bold tabular-nums tracking-tight ${tone}`}>{value}</p>
       <p className="mt-2 text-sm text-dim">{note}</p>
     </div>
@@ -35,7 +35,7 @@ function Chip({ verdict, expected }: { verdict: Verdict; expected: Verdict }) {
   const ok = verdict === expected;
   return (
     <span
-      className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${
+      className={`rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
         ok ? "bg-ok/15 text-ok" : "bg-danger/15 text-danger"
       }`}
       title={ok ? "Matches the expected verdict" : `Expected ${expected}`}
@@ -145,7 +145,7 @@ export function Metrics() {
 
           <div className="overflow-x-auto rounded-xl border border-line bg-panel">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase tracking-wider text-dim">
+              <thead className="text-xs font-mono uppercase tracking-wider text-dim">
                 <tr className="border-b border-line">
                   <th className="px-4 py-3 font-semibold">Scenario</th>
                   <th className="px-4 py-3 font-semibold">Type</th>

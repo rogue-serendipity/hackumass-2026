@@ -99,7 +99,7 @@ export function Lane({ lane, steps, statuses, running, done }: Props) {
               key={card.index}
               className="card-in rounded-lg border border-line bg-ink px-3 py-2"
             >
-              <p className={`text-[11px] font-semibold uppercase tracking-wider ${copy.tone}`}>
+              <p className={`text-[11px] font-semibold font-mono uppercase tracking-wider ${copy.tone}`}>
                 Final summary
               </p>
               <p className="mt-1 text-sm leading-relaxed">{card.text}</p>

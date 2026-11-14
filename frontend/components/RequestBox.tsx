@@ -10,7 +10,7 @@ export function RequestBox({ value, onChange, disabled, userName }: Props) {
     <section className="rounded-xl border border-line bg-panel p-4">
       <label
         htmlFor="request"
-        className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-dim"
+        className="flex items-center gap-2 text-xs font-semibold font-mono uppercase tracking-wider text-dim"
       >
         {userName ? `${userName} asks the assistant` : "User request"}
         <span className="rounded bg-ok/15 px-1.5 py-0.5 text-[11px] text-ok">
