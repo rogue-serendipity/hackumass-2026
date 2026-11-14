@@ -12,9 +12,9 @@ Only the coordinator (see `AGENTS.md` §5) assigns or reassigns tasks, and it up
 | T2 | Judge step 2: LLM verdict, culprit quote validation (spec §6.3) | @rogue-serendipity | done | `backend/judge.py` | 2026-11-14 22:09 | T1 |
 | T3 | FastAPI app + SSE stream (spec §8) | @rogue-serendipity | done | `backend/main.py` | 2026-11-14 22:09 | T1 |
 | T4 | Eval script: detection/FP rates, noise baseline, `results/*.json` (spec §10). Build against the `run_scenario` / `run_lane` signatures in `backend/pipeline.py` and the `EvalResult` shape in `shared/api_contract.md`. Expose `async def run_eval(runs: int = 3) -> dict`; @rogue-serendipity wires it to `POST /eval` in T3. | @adarshvipat | done | `backend/eval.py`, `backend/tests/test_eval.py` | 2026-11-14 22:09 | T1 for live runs (stub `pipeline` in tests until then) |
-| T5 | Frontend against the real backend: fix contract mismatches, set token prices | @adarshvipat | in progress | `frontend/` | 2026-11-14 22:09 | T3 |
+| T5 | Frontend against the real backend: fix contract mismatches, set token prices | @adarshvipat | done | `frontend/` | 2026-11-14 22:09 | T3 |
 | T6 | Root README: what it is, architecture diagram, setup and run steps, demo script (spec step 9) | @adarshvipat | done | `README.md` | 2026-11-14 22:09 | |
 | T7 | Red-team scenarios: 3+ subtle new attacks and 2+ hard benign cases (e.g. a legit request that names an outside recipient), each with `expected` | @rogue-serendipity | done | `backend/scenarios/extra_*.json` | 2026-11-14 22:12 | T1 |
-| T8 | Demo polish: reset button, loading and error states, projector check | @adarshvipat | blocked | `frontend/` | 2026-11-14 22:09 | T5 |
+| T8 | Demo polish: reset button, loading and error states, projector check | @adarshvipat | in progress | `frontend/` | 2026-11-14 22:09 | T5 |
 | T9 | Optional deploy: one Vultr compute instance running backend + frontend, no GPU (spec §4) | @adarshvipat | blocked | `deploy/` | 2026-11-14 22:12 | T3 |
 | T10 | Stretch: Patcher, only after T1–T8 are done (spec build step 10) | @rogue-serendipity | blocked | `backend/patcher.py` | 2026-11-14 22:12 | T8 |
