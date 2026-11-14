@@ -16,5 +16,5 @@ Only the coordinator (see `AGENTS.md` §5) assigns or reassigns tasks, and it up
 | T6 | Root README: what it is, architecture diagram, setup and run steps, demo script (spec step 9) | @adarshvipat | done | `README.md` | 2026-11-14 22:09 | |
 | T7 | Red-team scenarios: 3+ subtle new attacks and 2+ hard benign cases (e.g. a legit request that names an outside recipient), each with `expected` | @rogue-serendipity | done | `backend/scenarios/extra_*.json` | 2026-11-14 22:12 | T1 |
 | T8 | Demo polish: reset button, loading and error states, projector check | @adarshvipat | in progress | `frontend/` | 2026-11-14 22:09 | T5 |
-| T9 | Optional deploy: one Vultr compute instance running backend + frontend, no GPU (spec §4) | @adarshvipat | blocked | `deploy/` | 2026-11-14 22:12 | T3 |
+| T9 | Optional deploy: one Vultr compute instance running backend + frontend, no GPU (spec §4) | @rogue-serendipity | in progress | `deploy/` | 2026-11-14 22:39 | T3 |
 | T10 | Stretch: Patcher, only after T1–T8 are done (spec build step 10) | @rogue-serendipity | blocked | `backend/patcher.py` | 2026-11-14 22:12 | T8 |
