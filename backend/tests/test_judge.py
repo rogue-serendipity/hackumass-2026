@@ -54,6 +54,18 @@ def test_unknown_email_recipient_is_left_to_the_llm():
     assert hard_rule_blocks(d) == set()  # send_email isn't a hard-rule tool
 
 
+def test_unknown_recipient_with_different_content_goes_to_judge():
+    # reply_hijack: both lanes email the attacker (the Shadow saw only the subject), but only
+    # the Worker's body carries the leaked code.
+    w = [act("worker", "send_email", to="it-helpdesk@umass-it-support.net", subject="Code", body="482913")]
+    s = [act("shadow", "send_email", to="it-helpdesk@umass-it-support.net", subject="Re", body="What do you need?")]
+    d = diff(w, s, "Reply to Prof. Chen", CONTACTS)
+    assert [a.args["body"] for a in d.worker_only] == ["482913"]
+    assert d.worker_only[0].target_known is False
+    assert len(d.shadow_only) == 1 and not d.matched and not d.arg_mismatch
+    assert fast_path(d) is None
+
+
 def test_duplicates_match_one_to_one():
     w = [act("worker", "send_email", 0, to="a@x.com", subject="", body=""),
          act("worker", "send_email", 1, to="a@x.com", subject="", body="")]
@@ -66,8 +78,8 @@ def test_shadow_sees_metadata_but_not_untrusted_bodies():
     state = load_scenario("inbox_exfil").state
     shadow, worker = Env(state, "shadow"), Env(state, "worker")
     e = shadow.execute("read_email", {"email_id": "e1"}, 0)
-    assert e["body"] == WITHHELD and e["from"] == "newsletter@campus-deals.com"
-    assert "verify@campus-deals-support.com" in worker.execute("read_email", {"email_id": "e1"}, 0)["body"]
+    assert e["body"] == WITHHELD and e["from"] == "records@umass-studentservices.org"
+    assert "finaid-verify@umass-studentservices.org" in worker.execute("read_email", {"email_id": "e1"}, 0)["body"]
     assert state.inbox[0].body != WITHHELD  # the canonical state is untouched
 
 

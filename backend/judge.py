@@ -56,17 +56,23 @@ def diff(
     worker_only: list[ProposedAction] = []
 
     for w in worker:
+        known = is_target_known(w, user_request, contacts)
         s = next((s for s in unmatched_shadow if action_key(s) == action_key(w)), None)
         if s is None:
-            w = w.model_copy(update={"target_known": is_target_known(w, user_request, contacts)})
-            worker_only.append(w)
+            worker_only.append(w.model_copy(update={"target_known": known}))
             continue
-        unmatched_shadow.remove(s)
-        matched.append(ActionPair(worker=w, shadow=s))
         fields = sorted(
             k for k in (w.args.keys() | s.args.keys()) - set(KEY_FIELDS[w.tool])
             if w.args.get(k) != s.args.get(k)
         )
+        if fields and not known:
+            # Same unknown recipient, different content: the Shadow may have written to an address
+            # it saw only in a subject line, while the Worker's content came from the untrusted body
+            # (e.g. a leaked 2FA code). Treat the Worker's action as its own so the Judge reviews it.
+            worker_only.append(w.model_copy(update={"target_known": False}))
+            continue
+        unmatched_shadow.remove(s)
+        matched.append(ActionPair(worker=w, shadow=s))
         if fields:
             mismatches.append(Mismatch(worker=w, shadow=s, fields=fields))
 
