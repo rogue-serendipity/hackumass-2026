@@ -90,10 +90,11 @@ class PerAction(BaseModel):
 
 class JudgeVerdict(BaseModel):
     verdict: Verdict
-    source: Literal["fast_path", "llm"]
+    source: Literal["fast_path", "llm", "rule"]  # rule = auto-blocked by a Patcher rule; agents didn't run
     per_action: list[PerAction]
     serves_user_request: bool | None = None
     introduces_new_goal_or_recipient: bool | None = None
     culprit_email_id: str | None = None
     culprit_quote: str | None = None
     explanation: str
+    rule_id: int | None = None  # set when source == "rule"

@@ -9,6 +9,7 @@ import time
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
+import patcher
 from agents import Emit, run_agent
 from env import Env, untrusted_emails
 from judge import diff, judge
@@ -54,11 +55,18 @@ async def run_lane(scenario: Scenario, lane: Lane, usage: Usage, emit: Emit | No
     return (await _run_env(scenario, lane, usage, emit or _ignore)).actions
 
 
-async def run_scenario(scenario: Scenario, emit: Emit | None = None) -> RunResult:
-    """Full run: both lanes concurrently, diff, Judge, commit. Emits every SSE event if emit is given."""
+async def run_scenario(scenario: Scenario, emit: Emit | None = None, use_rules: bool = False) -> RunResult:
+    """Full run: both lanes concurrently, diff, Judge, commit. Emits every SSE event if emit is given.
+
+    use_rules turns on the Patcher: stored rules are checked before the agents run, and a BLOCK
+    writes a new rule. The API uses it; eval doesn't, so earlier runs can't skew the metrics.
+    """
     emit = emit or _ignore
     usage = Usage()
     start = time.monotonic()
+
+    if use_rules and (hit := patcher.check(scenario)):
+        return await _auto_block(scenario, hit, emit, start)
 
     worker, shadow = await asyncio.gather(
         _run_env(scenario, "worker", usage, emit),
@@ -75,6 +83,11 @@ async def run_scenario(scenario: Scenario, emit: Emit | None = None) -> RunResul
     committed = worker.actions if verdict.verdict == "APPROVE" else []
     await emit("committed", {"actions": [a.model_dump(mode="json") for a in committed]})
 
+    if use_rules and verdict.verdict == "BLOCK":
+        emails = untrusted_emails(scenario.state, worker.read_ids)
+        if rule := await patcher.make_rule(scenario, d, verdict, emails, client(), usage):
+            await emit("rule_created", {"rule": rule.model_dump(mode="json")})
+
     return RunResult(
         scenario_id=scenario.id,
         worker_actions=worker.actions,
@@ -85,4 +98,19 @@ async def run_scenario(scenario: Scenario, emit: Emit | None = None) -> RunResul
         latency_s=round(time.monotonic() - start, 2),
         input_tokens=usage.input_tokens,
         output_tokens=usage.output_tokens,
+    )
+
+
+async def _auto_block(scenario: Scenario, hit: patcher.RuleHit, emit: Emit, start: float) -> RunResult:
+    """A stored rule matched: BLOCK without running the agents. Emits the usual events, with empty lanes."""
+    empty = Diff(matched=[], worker_only=[], shadow_only=[], arg_mismatch=[])
+    verdict = patcher.rule_verdict(hit, scenario)
+    for lane in ("worker", "shadow"):
+        await emit("lane_done", {"lane": lane, "actions": []})
+    await emit("diff", empty.model_dump(mode="json"))
+    await emit("verdict", verdict.model_dump(mode="json"))
+    await emit("committed", {"actions": []})
+    return RunResult(
+        scenario_id=scenario.id, worker_actions=[], shadow_actions=[], diff=empty, verdict=verdict,
+        committed=[], latency_s=round(time.monotonic() - start, 2), input_tokens=0, output_tokens=0,
     )

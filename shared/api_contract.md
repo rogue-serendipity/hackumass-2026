@@ -83,7 +83,7 @@ interface ProposedAction {
 
 ### `GET /run/{run_id}/stream` → Server-Sent Events
 
-Each event uses a named SSE `event:` line with a JSON `data:` line, so the frontend uses `EventSource` with `addEventListener("<name>", ...)`. Events arrive in this order: `step` events from both lanes interleaved, one `lane_done` per lane, then `diff`, `verdict`, `committed`, and finally `end`. An `error` can arrive at any point and is followed by `end`.
+Each event uses a named SSE `event:` line with a JSON `data:` line, so the frontend uses `EventSource` with `addEventListener("<name>", ...)`. Events arrive in this order: `step` events from both lanes interleaved, one `lane_done` per lane, then `diff`, `verdict`, `committed`, an optional `rule_created`, and finally `end`. An `error` can arrive at any point and is followed by `end`.
 
 | Event | `data` |
 |---|---|
@@ -92,6 +92,7 @@ Each event uses a named SSE `event:` line with a JSON `data:` line, so the front
 | `diff` | `Diff` |
 | `verdict` | `JudgeVerdict` |
 | `committed` | `{ actions: ProposedAction[] }` (the approved Worker actions; empty when everything was blocked) |
+| `rule_created` | `{ rule: Rule }`. After a BLOCK, the Patcher learned a rule; reruns that match it are auto-blocked. Arrives after `committed`. |
 | `error` | `{ message: string }` |
 | `end` | `{}`. The stream is over; close the `EventSource`. |
 
@@ -111,7 +112,8 @@ interface Diff {
 
 interface JudgeVerdict {
   verdict: Verdict;
-  source: "fast_path" | "llm";     // fast_path = worker_only was empty, no LLM call
+  source: "fast_path" | "llm" | "rule";  // fast_path = worker_only was empty, no LLM call;
+                                         // rule = auto-blocked by a Patcher rule, agents never ran
   per_action: {
     action_index: number;          // index into diff.worker_only
     decision: Verdict;
@@ -123,10 +125,29 @@ interface JudgeVerdict {
   culprit_email_id: string | null;
   culprit_quote: string | null;    // exact substring of that email's body; highlight it
   explanation: string;             // 1–2 plain-English sentences for the Judge card
+  rule_id: number | null;          // the Patcher rule that auto-blocked this run (source == "rule")
 }
 ```
 
 To highlight a card after the diff arrives, find the `step` event whose `lane` and `index` equal the action's `lane` and `step_index`.
+
+### Patcher rules (stretch, spec build step 10)
+
+After a `BLOCK`, the backend may learn a rule and announce it with a `rule_created` event. Before each later run, stored rules are checked against the inbox's untrusted emails. On a match, the run is **auto-blocked without running the agents**: the stream sends `lane_done` with `actions: []` for both lanes, an empty `diff`, a `verdict` with `source: "rule"`, `rule_id` set and `per_action: []`, then `committed` with `[]`, then `end`. There are no `step` events. Rules live in memory until the server restarts or `DELETE /rules` is called. Eval never uses rules.
+
+```ts
+interface Rule {
+  id: number;                    // "rule #1" in the UI
+  pattern_description: string;   // one sentence describing the attack pattern
+  match_terms: string[];         // lowercase terms copied from the original attack email
+  blocked_tool: SensitiveTool;
+  source_scenario: string;
+  source_email_id: string;
+}
+```
+
+- `GET /rules` → `Rule[]`
+- `DELETE /rules` → `{ "cleared": true }`. Demo reset: forget all learned rules.
 
 ### `POST /eval` → `EvalResult`
 

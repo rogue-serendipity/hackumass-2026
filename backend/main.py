@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+import patcher
 from env import apply_overrides, list_scenarios, load_scenario
 from models import Scenario, ScenarioSummary
 from pipeline import run_scenario
@@ -81,7 +82,7 @@ async def stream_run(run_id: str) -> StreamingResponse:
 
     async def run() -> None:
         try:
-            await run_scenario(scenario, emit)
+            await run_scenario(scenario, emit, use_rules=True)
         except Exception as exc:
             await emit("error", {"message": f"{type(exc).__name__}: {exc}"})
         finally:
@@ -105,3 +106,15 @@ async def stream_run(run_id: str) -> StreamingResponse:
 async def post_eval(body: EvalRequest = EvalRequest()) -> dict:
     from eval import run_eval
     return await run_eval(body.runs)
+
+
+@app.get("/rules")
+def get_rules() -> list[patcher.Rule]:
+    return patcher.rules
+
+
+@app.delete("/rules")
+def clear_rules() -> dict:
+    """Demo reset: forget every learned rule."""
+    patcher.rules.clear()
+    return {"cleared": True}
