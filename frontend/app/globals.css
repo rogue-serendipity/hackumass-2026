@@ -10,11 +10,10 @@
   --color-line: #263042;
   --color-dim: #8a96ab;
   --color-text: #e7ebf3;
-  --color-worker: #38bdf8;
-  --color-shadow: #a78bfa;
-  --color-danger: #fb4c6a;
-  --color-ok: #34d399;
-  --color-warn: #fbbf24;
+  /* Accents by role. Everything else, including the Shadow lane, is neutral. */
+  --color-worker: #7c9cff; /* the Worker lane and interactive controls */
+  --color-danger: #fb4c6a; /* BLOCK / blocked only */
+  --color-ok: #34d399; /* APPROVE / committed only */
 }
 
 html {

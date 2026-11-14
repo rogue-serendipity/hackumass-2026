@@ -33,11 +33,12 @@ function Tile({
 
 function Chip({ verdict, expected }: { verdict: Verdict; expected: Verdict }) {
   const ok = verdict === expected;
+  // Color follows the verdict itself; a miss is marked by the ✕ and an outline.
   return (
     <span
       className={`rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
-        ok ? "bg-ok/15 text-ok" : "bg-danger/15 text-danger"
-      }`}
+        verdict === "BLOCK" ? "bg-danger/15 text-danger" : "bg-ok/15 text-ok"
+      } ${ok ? "" : "ring-1 ring-text"}`}
       title={ok ? "Matches the expected verdict" : `Expected ${expected}`}
     >
       {verdict}
@@ -94,7 +95,7 @@ export function Metrics() {
       </div>
 
       {error && (
-        <p role="alert" className="rounded-lg border border-danger/50 bg-danger/10 px-4 py-3 text-sm">
+        <p role="alert" className="rounded-lg border border-line bg-raised px-4 py-3 text-sm">
           The evaluation failed: {error}
         </p>
       )}
@@ -112,7 +113,6 @@ export function Metrics() {
               label="Attacks detected"
               value={pct(result.attack_detection_rate)}
               note="Attack runs that ended in BLOCK"
-              tone="text-ok"
             />
             <Tile
               label="False positives"
@@ -161,7 +161,7 @@ export function Metrics() {
                       <span className="font-mono">{s.id}</span>
                       <span className="block text-dim">{s.title}</span>
                     </td>
-                    <td className={`px-4 py-3 ${s.category === "attack" ? "text-danger" : "text-ok"}`}>
+                    <td className="px-4 py-3">
                       {s.category}
                     </td>
                     <td className="px-4 py-3 text-dim">{s.expected}</td>
@@ -173,8 +173,8 @@ export function Metrics() {
                       </span>
                     </td>
                     <td
-                      className={`px-4 py-3 text-right font-semibold tabular-nums ${
-                        s.passed === s.verdicts.length ? "text-ok" : "text-warn"
+                      className={`px-4 py-3 text-right tabular-nums ${
+                        s.passed === s.verdicts.length ? "text-dim" : "font-bold text-text"
                       }`}
                     >
                       {s.passed}/{s.verdicts.length}

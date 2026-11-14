@@ -136,7 +136,7 @@ export default function Home() {
           {loadError && (
             <div
               role="alert"
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-danger/50 bg-danger/10 px-4 py-3 text-sm"
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-raised px-4 py-3 text-sm"
             >
               <span className="mr-auto">Couldn&apos;t load scenarios: {loadError}</span>
               <button
@@ -171,7 +171,7 @@ export default function Home() {
           {run.error && (
             <p
               role="alert"
-              className="rounded-lg border border-danger/50 bg-danger/10 px-4 py-3 text-sm"
+              className="rounded-lg border border-line bg-raised px-4 py-3 text-sm"
             >
               The run failed: {run.error}
             </p>

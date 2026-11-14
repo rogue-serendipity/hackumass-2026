@@ -13,7 +13,7 @@ export function RequestBox({ value, onChange, disabled, userName }: Props) {
         className="flex items-center gap-2 text-xs font-semibold font-mono uppercase tracking-wider text-dim"
       >
         {userName ? `${userName} asks the assistant` : "User request"}
-        <span className="rounded bg-ok/15 px-1.5 py-0.5 text-[11px] text-ok">
+        <span className="rounded border border-line px-1.5 py-0.5 text-[11px] text-text">
           trusted
         </span>
       </label>

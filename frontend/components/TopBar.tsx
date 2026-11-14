@@ -39,7 +39,7 @@ export function TopBar({
             Shadow Agent Tribunal
           </h1>
           {mock && (
-            <span className="rounded border border-warn/40 px-1.5 py-0.5 font-mono text-xs font-medium text-warn">
+            <span className="rounded border border-line px-1.5 py-0.5 font-mono text-xs font-medium text-dim">
               mock data
             </span>
           )}
@@ -65,11 +65,7 @@ export function TopBar({
           <div className="flex items-center gap-3">
             {selected && (
               <span
-                className={`rounded px-2 py-1 text-xs font-semibold font-mono uppercase tracking-wide ${
-                  selected.category === "attack"
-                    ? "bg-danger/15 text-danger"
-                    : "bg-ok/15 text-ok"
-                }`}
+                className="rounded border border-line px-2 py-1 font-mono text-xs font-semibold uppercase tracking-wide text-text"
               >
                 {selected.category}
               </span>

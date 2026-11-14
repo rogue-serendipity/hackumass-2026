@@ -46,29 +46,31 @@ function badge(status: CardStatus | undefined) {
         };
       if (status.decision === "APPROVE")
         return { text: "Only the Worker did this · approved", tone: "text-ok" };
-      return { text: "Only the Worker did this", tone: "text-danger" };
+      return { text: "Only the Worker did this · awaiting the Judge", tone: "text-worker" };
     case "matched":
-      return { text: "Both agents did this", tone: "text-ok" };
+      return { text: "Both agents did this", tone: "text-text" };
     case "arg_mismatch":
-      return { text: "Same action, different details", tone: "text-warn" };
+      return { text: "Same action, different details", tone: "text-text" };
     case "shadow_only":
       return { text: "Only the Shadow did this", tone: "text-dim" };
   }
 }
 
 function frame(status: CardStatus | undefined) {
-  if (!status) return "border-warn/40 bg-warn/5";
+  // Red is BLOCK only and green is APPROVE/committed only. Every other state
+  // is neutral and told apart by its badge text.
+  const neutral = "border-line bg-raised";
+  if (!status) return `border-dashed ${neutral}`;
+  if (status.decision === "BLOCK") return "border-danger bg-danger/10 alarm";
+  if (status.decision === "APPROVE") return "border-ok/60 bg-ok/10";
   switch (status.kind) {
     case "worker_only":
-      return status.decision === "APPROVE"
-        ? "border-ok/60 bg-ok/10"
-        : "border-danger bg-danger/10 alarm";
+      return "border-worker/70 bg-worker/10";
     case "matched":
-      return "border-ok/60 bg-ok/10";
+      return status.committed ? "border-ok/60 bg-ok/10" : neutral;
     case "arg_mismatch":
-      return "border-warn/60 bg-warn/10";
     case "shadow_only":
-      return "border-line bg-raised";
+      return neutral;
   }
 }
 
@@ -85,9 +87,7 @@ export function StepCard({ call, result, status }: Props) {
         </p>
         {p && p.text && (
           <p
-            className={`mt-1 line-clamp-2 text-sm ${
-              p.withheld ? "italic text-shadow" : "text-dim"
-            }`}
+            className={`mt-1 line-clamp-2 text-sm text-dim ${p.withheld ? "italic" : ""}`}
           >
             {p.text}
           </p>
@@ -103,7 +103,7 @@ export function StepCard({ call, result, status }: Props) {
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <p className="font-mono text-base font-semibold">{tool}</p>
-        <p className="text-[11px] font-semibold font-mono uppercase tracking-wider text-warn">
+        <p className="text-[11px] font-semibold font-mono uppercase tracking-wider text-dim">
           Sensitive action
         </p>
       </div>

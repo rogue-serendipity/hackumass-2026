@@ -23,8 +23,8 @@ const COPY: Record<LaneName, { title: string; sub: string; tone: string; dot: st
   shadow: {
     title: "Shadow",
     sub: "untrusted content withheld",
-    tone: "text-shadow",
-    dot: "bg-shadow",
+    tone: "text-text",
+    dot: "bg-dim",
   },
 };
 
