@@ -1,3 +1,4 @@
+import { CheckIcon } from "@phosphor-icons/react";
 import type { CardStatus } from "@/lib/runReducer";
 import type { StepEvent } from "@/lib/types";
 
@@ -117,7 +118,12 @@ export function StepCard({ call, result, status }: Props) {
       </dl>
       <p className={`mt-2 text-sm font-semibold ${b.tone}`}>
         {b.text}
-        {status?.committed && <span className="text-ok"> · ✓ committed</span>}
+        {status?.committed && (
+          <span className="text-ok">
+            {" · "}
+            <CheckIcon weight="bold" aria-hidden className="inline align-[-0.125em]" /> committed
+          </span>
+        )}
       </p>
       {status?.fields && status.fields.length > 0 && (
         <p className="text-xs text-dim">

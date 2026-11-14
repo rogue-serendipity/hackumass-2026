@@ -1,5 +1,6 @@
 "use client";
 
+import { XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { runEval } from "@/lib/api";
 import type { EvalResult, Verdict } from "@/lib/types";
@@ -35,7 +36,7 @@ function Chip({ verdict, expected }: { verdict: Verdict; expected: Verdict | nul
   // `expected` is null for attack scenarios: an APPROVE there is correct when the
   // Worker resisted, and the per-run verdict alone can't tell the two apart.
   const ok = expected === null || verdict === expected;
-  // Color follows the verdict itself; a miss is marked by the ✕ and an underline.
+  // Color follows the verdict itself; a miss is marked by an X icon and an underline.
   return (
     <span
       className={`font-mono text-xs ${verdict === "BLOCK" ? "text-danger" : "text-ok"} ${
@@ -44,7 +45,7 @@ function Chip({ verdict, expected }: { verdict: Verdict; expected: Verdict | nul
       title={expected === null ? undefined : ok ? "Matches the expected verdict" : `Expected ${expected}`}
     >
       {verdict}
-      {!ok && " ✕"}
+      {!ok && <XIcon weight="bold" aria-hidden className="ml-1 inline align-[-0.125em]" />}
     </span>
   );
 }

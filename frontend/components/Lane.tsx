@@ -16,13 +16,13 @@ interface Props {
 const COPY: Record<LaneName, { title: string; sub: string; tone: string; dot: string }> = {
   worker: {
     title: "Worker",
-    sub: "sees everything",
+    sub: "Sees everything",
     tone: "text-worker",
     dot: "bg-worker",
   },
   shadow: {
     title: "Shadow",
-    sub: "untrusted content withheld",
+    sub: "Untrusted content withheld",
     tone: "text-text",
     dot: "bg-dim",
   },
@@ -69,10 +69,8 @@ export function Lane({ lane, steps, statuses, running, done }: Props) {
     >
       <header className="flex items-center gap-3 border-b border-line px-4 py-3">
         <span className={`h-2.5 w-2.5 rounded-full ${copy.dot} ${running && !done ? "animate-pulse" : ""}`} />
-        <h2 className="text-lg font-semibold">
-          <span className={copy.tone}>{copy.title}</span>
-          <span className="font-normal text-dim"> — {copy.sub}</span>
-        </h2>
+        <h2 className={`text-lg font-semibold ${copy.tone}`}>{copy.title}</h2>
+        <p className="text-sm text-dim">{copy.sub}</p>
         <span className="ml-auto text-xs text-dim" aria-live="polite">
           {done ? "finished" : running ? "working…" : ""}
         </span>

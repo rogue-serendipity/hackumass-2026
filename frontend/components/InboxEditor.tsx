@@ -1,3 +1,4 @@
+import { CaretRightIcon, PencilSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { Tag } from "./Tag";
 import type { Email } from "@/lib/types";
 
@@ -77,16 +78,19 @@ export function InboxEditor({
           aria-controls="inbox-body"
           className="flex items-center gap-2 text-xs font-semibold font-mono uppercase tracking-wider text-dim hover:text-text"
         >
-          <span className={`inline-block transition-transform ${open ? "rotate-90" : ""}`}>
-            ▸
-          </span>
+          <CaretRightIcon
+            weight="bold"
+            aria-hidden
+            className={`transition-transform ${open ? "rotate-90" : ""}`}
+          />
           Inbox · {emails.length} {emails.length === 1 ? "email" : "emails"}
         </button>
         {dirty && (
           <Tag tone="accent">edited</Tag>
         )}
-        <p className="mr-auto text-sm text-worker">
-          ✎ Every email is editable. Write your own attack, then hit Run.
+        <p className="mr-auto flex items-center gap-1.5 text-sm text-worker">
+          <PencilSimpleIcon aria-hidden className="shrink-0" />
+          Every email is editable. Write your own attack, then hit Run.
         </p>
         {open && (
           <div className="flex gap-2 text-sm">
@@ -179,7 +183,7 @@ export function InboxEditor({
                 aria-label={`Remove email ${email.id}`}
                 className="self-start rounded-xs px-1.5 py-1 text-dim hover:text-text disabled:opacity-50"
               >
-                ✕
+                <XIcon aria-hidden />
               </button>
             </article>
           ))}

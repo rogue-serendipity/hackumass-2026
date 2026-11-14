@@ -1,3 +1,4 @@
+import { PlayIcon } from "@phosphor-icons/react";
 import { Tag } from "./Tag";
 import type { ScenarioSummary } from "@/lib/types";
 
@@ -33,7 +34,7 @@ export function TopBar({
   ];
 
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-ink/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-line bg-ink">
       <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-5 gap-y-3 px-6 py-3">
         <div className="mr-auto flex items-baseline gap-3">
           <h1 className="text-xl font-semibold tracking-tight">
@@ -95,9 +96,15 @@ export function TopBar({
               type="button"
               onClick={onRun}
               disabled={!canRun || running}
-              className="h-10 min-w-28 rounded-xs bg-worker px-5 text-sm font-semibold text-ink transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 min-w-28 items-center justify-center gap-2 rounded-xs bg-worker px-5 text-sm font-semibold text-ink transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {running ? "Running…" : "Run ▶"}
+              {running ? (
+                "Running…"
+              ) : (
+                <>
+                  Run <PlayIcon weight="fill" aria-hidden />
+                </>
+              )}
             </button>
           </div>
         )}
