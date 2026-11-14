@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Shadow Agent Tribunal: frontend
 
-## Getting Started
+The Next.js UI from spec §9 (owner: @adarshvipat). It talks to the backend through the API in [`shared/api_contract.md`](../shared/api_contract.md).
 
-First, run the development server:
+## Run it
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```sh
+npm install
+npm run dev:mock   # no backend needed: replays scripted runs from lib/fixtures.ts
+npm run dev        # against the real backend at http://localhost:8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000. Settings go in `.env.local` (see `.env.example`):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Default | What it does |
+|---|---|---|
+| `NEXT_PUBLIC_API_BASE` | `http://localhost:8000` | Backend base URL |
+| `NEXT_PUBLIC_USE_MOCK` | `0` | `1` serves everything from the in-browser mock |
+| `NEXT_PUBLIC_PRICE_IN_PER_M`, `NEXT_PUBLIC_PRICE_OUT_PER_M` | unset | USD per million tokens; when both are set, the Metrics tab shows an estimated cost |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Checks
 
-## Learn More
+```sh
+npm test        # reducer, card highlighting, and that the fixtures follow the contract
+npm run lint
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+app/page.tsx          the single page; owns scenario, inbox and run state
+components/           TopBar, RequestBox, InboxEditor, Lane, StepCard, JudgeCard, Metrics
+lib/types.ts          types copied from shared/api_contract.md
+lib/api.ts            backend client (fetch + EventSource); delegates to the mock when enabled
+lib/mock.ts           same functions as api.ts, backed by lib/fixtures.ts
+lib/runReducer.ts     folds stream events into run state; derives each card's highlight
+lib/highlight.ts      finds the Judge's culprit quote inside an email body
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+How a step card gets its colour: when the `diff` event arrives, each action is matched to the `tool_call` step with the same `lane` and `index == step_index`. `worker_only` cards turn red and pulse, matched pairs turn green, and the Judge's per-action decision is added when the `verdict` arrives.
