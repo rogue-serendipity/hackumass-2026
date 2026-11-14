@@ -6,6 +6,9 @@
 #   scripts/board.sh check              show new comments that tag you; exit 1 if none
 #   scripts/board.sh wait [seconds]     block until a new comment tags you (poll every 30s by default)
 #   scripts/board.sh whoami             print the GitHub username this agent works for
+#   scripts/board.sh deadline <user> <minutes> <path>...
+#                                       wait until <user> pushes a commit to main touching any <path>;
+#                                       exit 0 if they did, 1 if <minutes> passed first
 set -euo pipefail
 
 REPO="rogue-serendipity/hackumass-2026"
@@ -40,6 +43,15 @@ new_mentions() {
   return 1
 }
 
+# Exit 0 if $1 has pushed a commit to main touching any of the remaining paths since $since.
+committed_since() {
+  local user="$1" since="$2" path; shift 2
+  for path in "$@"; do
+    [[ $(gh api "repos/$REPO/commits?sha=main&author=$user&since=$since&path=$path" --jq length) -gt 0 ]] && return 0
+  done
+  return 1
+}
+
 cmd="${1:-}"; shift || true
 case "$cmd" in
   post)
@@ -59,8 +71,19 @@ case "$cmd" in
   whoami)
     me
     ;;
+  deadline)
+    [[ $# -ge 3 ]] || { echo "usage: board.sh deadline <user> <minutes> <path>..." >&2; exit 2; }
+    user="$1"; minutes="$2"; shift 2
+    since=$(date -u +%Y-%m-%dT%H:%M:%SZ); end=$(( $(date +%s) + minutes * 60 ))
+    while (( $(date +%s) < end )); do
+      if committed_since "$user" "$since" "$@"; then echo "@$user committed to $*"; exit 0; fi
+      sleep 60
+    done
+    committed_since "$user" "$since" "$@" && { echo "@$user committed to $*"; exit 0; }
+    echo "@$user made no commit to $* within $minutes minutes"; exit 1
+    ;;
   *)
-    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
     ;;
 esac
