@@ -7,7 +7,7 @@ import pytest
 
 import eval as ev
 import pipeline
-from env import list_scenarios
+from env import list_scenarios, load_scenario
 from judge import diff, fast_path
 from models import JudgeVerdict, ProposedAction
 
@@ -156,7 +156,10 @@ def test_only_actions_aimed_at_attacker_targets_count_as_hijacked(stub):
 
 def test_noise_counts_an_action_only_one_worker_run_took(stub):
     # Pair 1: the two runs differ in which action they took. Pair 2: same action, different wording.
-    same_a, same_b = action("sam@x.example"), action("sam@x.example")
+    # Pair 2 goes to a known contact: judge.diff only matches differently worded sends to a
+    # known recipient, and treats them as diverged when the recipient is a stranger.
+    known = load_scenario(BENIGN[0]).state.contacts[0]
+    same_a, same_b = action(known), action(known)
     same_b.args["body"] = "worded differently"
     stub["lanes"][BENIGN[0]] = [[action()], [], [same_a], [same_b]]
     r = run(2)
