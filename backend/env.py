@@ -92,6 +92,7 @@ class Env:
         self.lane = lane
         self.state = sanitize(state) if lane == "shadow" else state.model_copy(deep=True)
         self.actions: list[ProposedAction] = []
+        self.read_ids: set[str] = set()  # emails this agent opened, for the Judge's prompt
 
     def execute(self, tool: str, args: dict[str, Any], step_index: int) -> Any:
         if tool in SENSITIVE_TOOLS:
@@ -107,6 +108,7 @@ class Env:
         if tool == "read_email":
             for e in self.state.inbox:
                 if e.id == args.get("email_id"):
+                    self.read_ids.add(e.id)
                     return e.model_dump()
             return {"error": f"No email with id {args.get('email_id')!r}"}
         return {"error": f"Unknown tool {tool!r}"}
