@@ -1,3 +1,4 @@
+import { Tag } from "./Tag";
 import { splitAroundQuote } from "@/lib/highlight";
 import type { Phase } from "@/lib/runReducer";
 import type { Diff, Email, JudgeVerdict } from "@/lib/types";
@@ -30,7 +31,7 @@ function Flag({ label, value }: { label: string; value: boolean | null }) {
 function Culprit({ email, quote }: { email: Email; quote: string | null }) {
   const split = splitAroundQuote(email.body, quote);
   return (
-    <div className="rounded-lg border border-danger/40 bg-ink p-4">
+    <div className="border-l-2 border-danger/50 pl-4">
       <p className="text-[11px] font-semibold font-mono uppercase tracking-wider text-danger">
         The email that caused it
       </p>
@@ -42,7 +43,7 @@ function Culprit({ email, quote }: { email: Email; quote: string | null }) {
         {split ? (
           <>
             {split.before}
-            <mark className="rounded bg-danger/25 px-0.5 font-medium text-text ring-1 ring-danger/60">
+            <mark className="rounded-xs bg-danger/25 px-0.5 font-medium text-text ring-1 ring-danger/60">
               {split.match}
             </mark>
             {split.after}
@@ -52,7 +53,7 @@ function Culprit({ email, quote }: { email: Email; quote: string | null }) {
         )}
       </p>
       {!split && quote && (
-        <p className="mt-3 border-l-2 border-danger pl-3 text-sm text-text">
+        <p className="mt-3 text-sm text-text">
           <span className="text-dim">Judge&apos;s quote: </span>
           {quote}
         </p>
@@ -69,7 +70,7 @@ export function JudgeCard({ phase, diff, verdict, emails }: Props) {
       <section
         aria-label="Judge"
         aria-live="polite"
-        className="rounded-xl border border-dashed border-line bg-panel px-6 py-8 text-center"
+        className="rounded-lg border border-dashed border-line bg-panel px-6 py-8 text-center"
       >
         <p className="text-xs font-semibold font-mono uppercase tracking-wider text-dim">Judge</p>
         <p className={`mt-2 text-lg ${active ? "animate-pulse text-text" : "text-dim"}`}>
@@ -88,7 +89,7 @@ export function JudgeCard({ phase, diff, verdict, emails }: Props) {
     <section
       aria-label="Judge"
       aria-live="polite"
-      className={`verdict-in rounded-xl border-2 p-6 ${
+      className={`verdict-in rounded-2xl border-2 p-6 ${
         block ? "border-danger bg-danger/[0.07]" : "border-ok bg-ok/[0.07]"
       }`}
     >
@@ -109,11 +110,11 @@ export function JudgeCard({ phase, diff, verdict, emails }: Props) {
           <p className="mt-3 text-xl leading-snug">{verdict.explanation}</p>
 
           {verdict.per_action.length > 0 && (
-            <ul className="mt-4 space-y-2 text-sm">
+            <ul className="mt-4 divide-y divide-line text-sm">
               {verdict.per_action.map((p) => {
                 const action = diff?.worker_only[p.action_index];
                 return (
-                  <li key={p.action_index} className="rounded-lg border border-line bg-ink/60 px-3 py-2">
+                  <li key={p.action_index} className="py-2">
                     <span
                       className={`mr-2 font-semibold ${
                         p.decision === "BLOCK" ? "text-danger" : "text-ok"
@@ -123,9 +124,9 @@ export function JudgeCard({ phase, diff, verdict, emails }: Props) {
                     </span>
                     {action && <span className="mr-2 font-mono">{action.tool}</span>}
                     {p.hard_rule && (
-                      <span className="mr-2 rounded bg-danger/20 px-1.5 py-0.5 text-[11px] font-semibold font-mono uppercase tracking-wide text-danger">
+                      <Tag tone="danger" className="mr-2">
                         hard rule
-                      </span>
+                      </Tag>
                     )}
                     <span className="text-dim">{p.reason}</span>
                   </li>
@@ -151,14 +152,14 @@ export function JudgeCard({ phase, diff, verdict, emails }: Props) {
         {culprit ? (
           <Culprit email={culprit} quote={verdict.culprit_quote} />
         ) : verdict.culprit_quote ? (
-          <div className="rounded-lg border border-danger/40 bg-ink p-4 text-sm">
+          <div className="border-l-2 border-danger/50 pl-4 text-sm">
             <p className="text-[11px] font-semibold font-mono uppercase tracking-wider text-danger">
               The sentence that caused it
             </p>
             <p className="mt-2">{verdict.culprit_quote}</p>
           </div>
         ) : block ? (
-          <div className="flex items-center justify-center rounded-lg border border-line bg-ink/60 p-4 text-center text-sm text-dim">
+          <div className="flex items-center justify-center p-4 text-center text-sm text-dim">
             The Judge did not point to a specific email.
           </div>
         ) : null}

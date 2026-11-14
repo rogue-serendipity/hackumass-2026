@@ -65,7 +65,7 @@ export function Lane({ lane, steps, statuses, running, done }: Props) {
   return (
     <section
       aria-label={`${copy.title} lane`}
-      className="flex min-h-0 flex-col rounded-xl border border-line bg-panel"
+      className="flex min-h-0 flex-col rounded-lg border border-line bg-panel"
     >
       <header className="flex items-center gap-3 border-b border-line px-4 py-3">
         <span className={`h-2.5 w-2.5 rounded-full ${copy.dot} ${running && !done ? "animate-pulse" : ""}`} />
@@ -97,7 +97,7 @@ export function Lane({ lane, steps, statuses, running, done }: Props) {
           ) : (
             <li
               key={card.index}
-              className="card-in rounded-lg border border-line bg-ink px-3 py-2"
+              className="card-in border-t border-line px-1 pt-3"
             >
               <p className={`text-[11px] font-semibold font-mono uppercase tracking-wider ${copy.tone}`}>
                 Final summary

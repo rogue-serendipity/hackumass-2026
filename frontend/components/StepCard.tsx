@@ -80,7 +80,7 @@ export function StepCard({ call, result, status }: Props) {
   if (!sensitive) {
     const p = result ? preview(result.value) : null;
     return (
-      <li className="card-in rounded-lg border border-line bg-raised px-3 py-2">
+      <li className="card-in px-1 py-0.5">
         <p className="truncate font-mono text-sm">
           <span className="text-text">{tool}</span>
           <span className="text-dim">({argsInline(args)})</span>
@@ -99,7 +99,7 @@ export function StepCard({ call, result, status }: Props) {
   const b = badge(status);
   return (
     <li
-      className={`card-in rounded-lg border-2 px-3 py-2.5 transition-colors duration-500 ${frame(status)}`}
+      className={`card-in rounded-sm border-2 px-3 py-2.5 transition-colors duration-500 ${frame(status)}`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <p className="font-mono text-base font-semibold">{tool}</p>

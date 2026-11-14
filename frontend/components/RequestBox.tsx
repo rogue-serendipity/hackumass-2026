@@ -1,3 +1,5 @@
+import { Tag } from "./Tag";
+
 interface Props {
   value: string;
   onChange: (value: string) => void;
@@ -7,15 +9,13 @@ interface Props {
 
 export function RequestBox({ value, onChange, disabled, userName }: Props) {
   return (
-    <section className="rounded-xl border border-line bg-panel p-4">
+    <section className="rounded-lg border border-line bg-panel p-4">
       <label
         htmlFor="request"
-        className="flex items-center gap-2 text-xs font-semibold font-mono uppercase tracking-wider text-dim"
+        className="flex items-center gap-3 text-xs font-semibold font-mono uppercase tracking-wider text-dim"
       >
         {userName ? `${userName} asks the assistant` : "User request"}
-        <span className="rounded border border-line px-1.5 py-0.5 text-[11px] text-text">
-          trusted
-        </span>
+        <Tag tone="solid">trusted</Tag>
       </label>
       <textarea
         id="request"
@@ -23,7 +23,7 @@ export function RequestBox({ value, onChange, disabled, userName }: Props) {
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         rows={2}
-        className="mt-2 w-full resize-none rounded-lg border border-line bg-ink px-3 py-2 text-lg outline-none focus:border-worker disabled:opacity-60"
+        className="mt-2 w-full resize-none rounded-xs border border-line bg-ink px-3 py-2 text-lg outline-none focus:border-worker disabled:opacity-60"
       />
     </section>
   );

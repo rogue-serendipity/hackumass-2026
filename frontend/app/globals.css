@@ -16,6 +16,14 @@
   --color-ok: #34d399; /* APPROVE / committed only */
 }
 
+/*
+ * Corner radius follows importance:
+ *   rounded-2xl  the Judge's verdict
+ *   rounded-lg   page sections (lanes, inbox, request, metrics panels)
+ *   rounded-sm   sensitive-action cards
+ *   rounded-xs   inline elements (inputs, buttons, highlights)
+ */
+
 html {
   color-scheme: dark;
 }

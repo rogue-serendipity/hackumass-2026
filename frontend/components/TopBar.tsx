@@ -1,3 +1,4 @@
+import { Tag } from "./Tag";
 import type { ScenarioSummary } from "@/lib/types";
 
 export type Tab = "tribunal" | "metrics";
@@ -39,20 +40,18 @@ export function TopBar({
             Shadow Agent Tribunal
           </h1>
           {mock && (
-            <span className="rounded border border-line px-1.5 py-0.5 font-mono text-xs font-medium text-dim">
-              mock data
-            </span>
+            <Tag tone="hollow">mock data</Tag>
           )}
         </div>
 
-        <nav className="flex rounded-lg border border-line p-0.5 text-sm" aria-label="View">
+        <nav className="flex rounded-xs border border-line p-0.5 text-sm" aria-label="View">
           {(["tribunal", "metrics"] as const).map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => onTab(t)}
               aria-current={tab === t ? "page" : undefined}
-              className={`rounded-md px-3 py-1.5 font-medium capitalize transition-colors ${
+              className={`rounded-xs px-3 py-1.5 font-medium capitalize transition-colors ${
                 tab === t ? "bg-raised text-text" : "text-dim hover:text-text"
               }`}
             >
@@ -64,11 +63,9 @@ export function TopBar({
         {tab === "tribunal" && (
           <div className="flex items-center gap-3">
             {selected && (
-              <span
-                className="rounded border border-line px-2 py-1 font-mono text-xs font-semibold uppercase tracking-wide text-text"
-              >
+              <Tag tone={selected.category === "attack" ? "hollow" : "solid"}>
                 {selected.category}
-              </span>
+              </Tag>
             )}
             <label className="sr-only" htmlFor="scenario">
               Scenario
@@ -78,7 +75,7 @@ export function TopBar({
               value={selectedId ?? ""}
               onChange={(e) => onSelect(e.target.value)}
               disabled={scenarios.length === 0}
-              className="h-10 max-w-[22rem] rounded-lg border border-line bg-panel px-3 text-sm outline-none focus:border-worker disabled:opacity-50"
+              className="h-10 max-w-[22rem] rounded-xs border border-line bg-panel px-3 text-sm outline-none focus:border-worker disabled:opacity-50"
             >
               {scenarios.length === 0 && <option value="">No scenarios</option>}
               {groups.map(
@@ -98,7 +95,7 @@ export function TopBar({
               type="button"
               onClick={onRun}
               disabled={!canRun || running}
-              className="h-10 min-w-28 rounded-lg bg-worker px-5 text-sm font-semibold text-ink transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-10 min-w-28 rounded-xs bg-worker px-5 text-sm font-semibold text-ink transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {running ? "Running…" : "Run ▶"}
             </button>

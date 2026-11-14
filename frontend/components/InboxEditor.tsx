@@ -1,3 +1,4 @@
+import { Tag } from "./Tag";
 import type { Email } from "@/lib/types";
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
 }
 
 const field =
-  "w-full rounded-md border border-transparent bg-ink px-2 py-1 outline-none hover:border-line focus:border-worker disabled:opacity-60";
+  "w-full rounded-xs border border-transparent bg-transparent px-2 py-1 outline-none hover:border-line focus:border-worker focus:bg-ink disabled:opacity-60";
 
 function isEdited(email: Email, original: Email[]) {
   const before = original.find((o) => o.id === email.id);
@@ -67,7 +68,7 @@ export function InboxEditor({
     ]);
 
   return (
-    <section className="rounded-xl border border-line bg-panel">
+    <section className="rounded-lg border border-line bg-panel">
       <div className="flex flex-wrap items-center gap-3 p-4">
         <button
           type="button"
@@ -82,9 +83,7 @@ export function InboxEditor({
           Inbox · {emails.length} {emails.length === 1 ? "email" : "emails"}
         </button>
         {dirty && (
-          <span className="rounded border border-line px-1.5 py-0.5 font-mono text-xs font-medium text-text">
-            edited
-          </span>
+          <Tag tone="accent">edited</Tag>
         )}
         <p className="mr-auto text-sm text-worker">
           ✎ Every email is editable. Write your own attack, then hit Run.
@@ -96,7 +95,7 @@ export function InboxEditor({
                 type="button"
                 onClick={() => onChange(original)}
                 disabled={disabled}
-                className="rounded-md border border-line px-3 py-1.5 text-dim hover:text-text disabled:opacity-50"
+                className="rounded-xs border border-line px-3 py-1.5 text-dim hover:text-text disabled:opacity-50"
               >
                 Reset
               </button>
@@ -105,7 +104,7 @@ export function InboxEditor({
               type="button"
               onClick={add}
               disabled={disabled}
-              className="rounded-md border border-worker/50 px-3 py-1.5 font-medium text-worker hover:bg-worker/10 disabled:opacity-50"
+              className="rounded-xs border border-worker/50 px-3 py-1.5 font-medium text-worker hover:bg-worker/10 disabled:opacity-50"
             >
               + Add email
             </button>
@@ -116,68 +115,72 @@ export function InboxEditor({
       {open && (
         <div
           id="inbox-body"
-          className="grid gap-3 border-t border-line p-4 md:grid-cols-2 xl:grid-cols-3"
+          className="divide-y divide-line border-t border-line px-4"
         >
           {emails.length === 0 && (
-            <p className="text-sm text-dim">The inbox is empty. Add an email.</p>
+            <p className="py-4 text-sm text-dim">The inbox is empty. Add an email.</p>
           )}
           {emails.map((email) => (
             <article
               key={email.id}
-              className="flex flex-col gap-1.5 rounded-lg border border-line bg-raised p-3 text-sm"
+              className="grid gap-x-4 gap-y-1 py-3 text-sm md:grid-cols-[16rem_minmax(0,1fr)_auto]"
             >
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs text-dim">{email.id}</span>
-                <span
-                  className={`rounded border px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide ${
-                    email.trusted
-                      ? "border-line text-text"
-                      : "border-dashed border-dim text-dim"
-                  }`}
-                  title={
-                    email.trusted
-                      ? "The Shadow can read this email's body"
-                      : "Untrusted: the Shadow never sees this email's body"
-                  }
-                >
-                  {email.trusted ? "trusted" : "external"}
-                </span>
-                {isEdited(email, original) && (
-                  <span className="font-mono text-[11px] font-medium text-text">edited</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onChange(emails.filter((e) => e.id !== email.id))}
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-3 px-2">
+                  <span className="font-mono text-xs text-dim">
+                    {email.id}
+                    {isEdited(email, original) && (
+                      <span className="text-worker" title="Edited">
+                        *<span className="sr-only"> edited</span>
+                      </span>
+                    )}
+                  </span>
+                  <Tag
+                    tone={email.trusted ? "solid" : "hollow"}
+                    title={
+                      email.trusted
+                        ? "The Shadow can read this email's body"
+                        : "Untrusted: the Shadow never sees this email's body"
+                    }
+                  >
+                    {email.trusted ? "trusted" : "external"}
+                  </Tag>
+                </div>
+                <input
+                  aria-label={`From (${email.id})`}
+                  value={email.from}
+                  onChange={(e) => patch(email.id, { from: e.target.value })}
                   disabled={disabled}
-                  aria-label={`Remove email ${email.id}`}
-                  className="ml-auto rounded px-1.5 text-dim hover:text-text disabled:opacity-50"
-                >
-                  ✕
-                </button>
+                  className={`${field} font-mono text-xs text-dim`}
+                />
               </div>
-              <input
-                aria-label={`From (${email.id})`}
-                value={email.from}
-                onChange={(e) => patch(email.id, { from: e.target.value })}
+              <div className="flex flex-col gap-1">
+                <input
+                  aria-label={`Subject (${email.id})`}
+                  value={email.subject}
+                  onChange={(e) => patch(email.id, { subject: e.target.value })}
+                  disabled={disabled}
+                  className={`${field} font-semibold`}
+                />
+                <textarea
+                  aria-label={`Body (${email.id})`}
+                  value={email.body}
+                  onChange={(e) => patch(email.id, { body: e.target.value })}
+                  disabled={disabled}
+                  rows={3}
+                  placeholder="Type the email body…"
+                  className={`${field} resize-y leading-relaxed`}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => onChange(emails.filter((e) => e.id !== email.id))}
                 disabled={disabled}
-                className={`${field} font-mono text-xs text-dim`}
-              />
-              <input
-                aria-label={`Subject (${email.id})`}
-                value={email.subject}
-                onChange={(e) => patch(email.id, { subject: e.target.value })}
-                disabled={disabled}
-                className={`${field} font-semibold`}
-              />
-              <textarea
-                aria-label={`Body (${email.id})`}
-                value={email.body}
-                onChange={(e) => patch(email.id, { body: e.target.value })}
-                disabled={disabled}
-                rows={7}
-                placeholder="Type the email body…"
-                className={`${field} resize-y leading-relaxed`}
-              />
+                aria-label={`Remove email ${email.id}`}
+                className="self-start rounded-xs px-1.5 py-1 text-dim hover:text-text disabled:opacity-50"
+              >
+                ✕
+              </button>
             </article>
           ))}
         </div>
