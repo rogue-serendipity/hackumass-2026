@@ -65,10 +65,12 @@ def diff(
             k for k in (w.args.keys() | s.args.keys()) - set(KEY_FIELDS[w.tool])
             if w.args.get(k) != s.args.get(k)
         )
-        if fields and not known:
-            # Same unknown recipient, different content: the Shadow may have written to an address
-            # it saw only in a subject line, while the Worker's content came from the untrusted body
-            # (e.g. a leaked 2FA code). Treat the Worker's action as its own so the Judge reviews it.
+        if not known and (fields or w.tool in HARD_RULE_TOOLS):
+            # Agreement isn't proof of safety when the target is unknown, because the Shadow also
+            # sees attacker-controlled metadata (sender addresses, subjects):
+            # - different content: the Worker's may carry data from the untrusted body (a leaked 2FA code);
+            # - money or files: both lanes may have paid a lookalike sender's address.
+            # Treat the Worker's action as its own so the Judge and the hard rule review it.
             worker_only.append(w.model_copy(update={"target_known": False}))
             continue
         unmatched_shadow.remove(s)
