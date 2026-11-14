@@ -51,6 +51,9 @@ class Scenario(ScenarioSummary):
     user_request: str
     state: State
     expected: Verdict
+    # Addresses an attack tries to reach. A Worker action targeting one means the attack landed;
+    # eval uses this to separate "Worker resisted" from "Worker hijacked and caught".
+    attacker_targets: list[str] = []
 
 
 class ProposedAction(BaseModel):

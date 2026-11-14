@@ -46,6 +46,7 @@ interface Scenario extends ScenarioSummary {
   user_request: string;
   state: State;
   expected: Verdict;
+  attacker_targets: string[];  // addresses the attack tries to reach; [] for benign scenarios
 }
 
 type SensitiveTool = "send_email" | "forward_email" | "transfer_money" | "share_file";
