@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +36,55 @@ CONCURRENCY = int(os.getenv("EVAL_CONCURRENCY", "4"))
 
 # Each job gets this many tries before it is recorded as failed.
 ATTEMPTS = 2
+
+
+# Live progress of the evaluation in flight, for GET /eval/progress. One eval at a
+# time is assumed (the UI disables its button while one runs).
+_progress: dict = {"running": False}
+
+
+def get_progress() -> dict:
+    """Snapshot of the running (or last) evaluation, shaped as EvalProgress in shared/api_contract.md."""
+    p = {k: v for k, v in _progress.items() if k not in ("started_at", "elapsed_final")}
+    if "started_at" in _progress:
+        p["elapsed_s"] = (
+            round(time.monotonic() - _progress["started_at"], 1)
+            if _progress["running"]
+            else _progress.get("elapsed_final", 0.0)
+        )
+    if "scenarios" in p:
+        p["scenarios"] = [dict(r, verdicts=list(r["verdicts"])) for r in p["scenarios"]]
+    return p
+
+
+def _start_progress(tallies: list["Tally"], runs: int) -> dict[str, dict]:
+    rows = [
+        {
+            "id": t.scenario.id,
+            "category": t.scenario.category,
+            "total": runs * (2 if t.scenario.category == "benign" else 1),
+            "done": 0,
+            "failed": 0,
+            "verdicts": [],
+        }
+        for t in tallies
+    ]
+    _progress.clear()
+    _progress.update(
+        running=True,
+        runs_per_scenario=runs,
+        total_jobs=sum(r["total"] for r in rows),
+        done_jobs=0,
+        started_at=time.monotonic(),
+        scenarios=rows,
+    )
+    return {r["id"]: r for r in rows}
+
+
+def _finish_progress() -> None:
+    if _progress.get("running"):
+        _progress["elapsed_final"] = round(time.monotonic() - _progress["started_at"], 1)
+        _progress["running"] = False
 
 
 @dataclass
@@ -62,14 +112,18 @@ async def run_eval(runs: int = 3) -> dict:
 
     tallies = [Tally(load_scenario(s.id)) for s in list_scenarios()]
     limit = asyncio.Semaphore(CONCURRENCY)
+    rows = _start_progress(tallies, runs)
 
     jobs = []
     for tally in tallies:
         for n in range(runs):
-            jobs.append(_guarded(limit, tally, "tribunal", n, _tribunal_run))
+            jobs.append(_guarded(limit, tally, "tribunal", n, _tribunal_run, rows))
             if tally.scenario.category == "benign":
-                jobs.append(_guarded(limit, tally, "noise", n, _noise_pair))
-    await asyncio.gather(*jobs)
+                jobs.append(_guarded(limit, tally, "noise", n, _noise_pair, rows))
+    try:
+        await asyncio.gather(*jobs)
+    finally:
+        _finish_progress()
 
     for tally in tallies:
         tally.runs.sort(key=lambda r: r["run"])
@@ -85,8 +139,18 @@ async def run_eval(runs: int = 3) -> dict:
     return result
 
 
-async def _guarded(limit: asyncio.Semaphore, tally: Tally, kind: str, n: int, job) -> None:
+async def _guarded(limit: asyncio.Semaphore, tally: Tally, kind: str, n: int, job, rows: dict | None = None) -> None:
     """Run one job under the concurrency limit, retrying once; record a failure instead of raising."""
+    row = (rows or {}).get(tally.scenario.id)
+    try:
+        await _attempt(limit, tally, kind, n, job, row)
+    finally:
+        if row is not None:
+            row["done"] += 1
+            _progress["done_jobs"] = _progress.get("done_jobs", 0) + 1
+
+
+async def _attempt(limit: asyncio.Semaphore, tally: Tally, kind: str, n: int, job, row: dict | None) -> None:
     async with limit:
         for attempt in range(1, ATTEMPTS + 1):
             try:
@@ -99,8 +163,12 @@ async def _guarded(limit: asyncio.Semaphore, tally: Tally, kind: str, n: int, jo
             else:
                 record["run"] = n
                 (tally.runs if kind == "tribunal" else tally.noise).append(record)
+                if row is not None and kind == "tribunal":
+                    row["verdicts"].append(record["verdict"])
                 return
         tally.errors.append({"kind": kind, "run": n, "error": error})
+        if row is not None:
+            row["failed"] += 1
 
 
 def is_hijacked(scenario: Scenario, worker_actions) -> bool:

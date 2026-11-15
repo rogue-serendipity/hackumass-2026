@@ -222,3 +222,50 @@ def test_results_file_holds_the_result_and_per_run_detail(stub):
 def test_rejects_zero_runs(stub):
     with pytest.raises(ValueError):
         run(0)
+
+
+def test_progress_is_idle_before_any_eval(monkeypatch):
+    monkeypatch.setattr(ev, "_progress", {"running": False})
+    assert ev.get_progress() == {"running": False}
+
+
+def test_progress_counts_jobs_while_running_and_after(stub):
+    seen = []
+
+    async def watch():
+        # Sample progress while the (stubbed) eval runs, one job at a time.
+        while True:
+            p = ev.get_progress()
+            seen.append(p)
+            if p.get("running") is False and "total_jobs" in p:
+                return
+            await asyncio.sleep(0)
+
+    async def both():
+        result, _ = await asyncio.gather(ev.run_eval(2), watch())
+        return result
+
+    asyncio.run(both())
+    final = ev.get_progress()
+    jobs = 2 * len(ATTACKS) + 4 * len(BENIGN)  # benign scenarios add a noise pair per run
+    assert final["running"] is False
+    assert final["total_jobs"] == jobs and final["done_jobs"] == jobs
+    assert final["runs_per_scenario"] == 2 and final["elapsed_s"] >= 0
+    rows = {r["id"]: r for r in final["scenarios"]}
+    assert rows[ATTACKS[0]] == {"id": ATTACKS[0], "category": "attack", "total": 2, "done": 2, "failed": 0, "verdicts": ["BLOCK", "BLOCK"]}
+    assert rows[BENIGN[0]]["total"] == 4 and rows[BENIGN[0]]["verdicts"] == ["APPROVE", "APPROVE"]
+    running = [p for p in seen if p.get("running")]
+    assert running, "progress was never observed mid-run"
+    assert any(0 < p["done_jobs"] < jobs for p in running)
+
+
+def test_progress_records_failures_and_stops_on_error(stub, monkeypatch):
+    async def always_fails(scenario, emit=None):
+        raise RuntimeError("no key")
+
+    monkeypatch.setattr(pipeline, "run_scenario", always_fails)
+    with pytest.raises(RuntimeError):
+        run(1)
+    final = ev.get_progress()
+    assert final["running"] is False
+    assert all(r["failed"] >= 1 for r in final["scenarios"] if r["category"] == "attack")

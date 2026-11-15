@@ -137,6 +137,23 @@ export interface EvalResult {
   }[];
 }
 
+/** GET /eval/progress: live progress of POST /eval. Only `running` is set before the first eval. */
+export interface EvalProgress {
+  running: boolean;
+  runs_per_scenario?: number;
+  total_jobs?: number; // tribunal runs plus noise-baseline pairs
+  done_jobs?: number; // including failed ones
+  elapsed_s?: number;
+  scenarios?: {
+    id: string;
+    category: "attack" | "benign";
+    total: number;
+    done: number;
+    failed: number;
+    verdicts: Verdict[];
+  }[];
+}
+
 // One entry per SSE event name on GET /run/{run_id}/stream.
 export type RunEvent =
   | { event: "step"; data: StepEvent }

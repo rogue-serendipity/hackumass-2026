@@ -3,6 +3,7 @@
 
 import { MOCK_EVAL, MOCK_SCENARIOS } from "./fixtures";
 import type {
+  EvalProgress,
   EvalResult,
   JudgeVerdict,
   Rule,
@@ -140,7 +141,40 @@ export function openRunStream(
   return () => clearTimeout(timer);
 }
 
+const MOCK_EVAL_MS = 9000;
+let evalStartedAt: number | null = null;
+
 export async function runEval(): Promise<EvalResult> {
-  await sleep(2500);
+  evalStartedAt = Date.now();
+  await sleep(MOCK_EVAL_MS);
+  evalStartedAt = null;
   return MOCK_EVAL;
+}
+
+/** Fake progress for the mock eval: jobs finish evenly over MOCK_EVAL_MS. */
+export async function getEvalProgress(): Promise<EvalProgress> {
+  if (evalStartedAt === null) return { running: false };
+  const runs = MOCK_EVAL.runs_per_scenario;
+  const rows = MOCK_EVAL.scenarios.map((s) => ({
+    id: s.id,
+    category: s.category,
+    total: runs * (s.category === "benign" ? 2 : 1),
+  }));
+  const total = rows.reduce((n, r) => n + r.total, 0);
+  const elapsed = Date.now() - evalStartedAt;
+  let left = Math.min(total, Math.floor((elapsed / MOCK_EVAL_MS) * total));
+  const done = left;
+  return {
+    running: true,
+    runs_per_scenario: runs,
+    total_jobs: total,
+    done_jobs: done,
+    elapsed_s: elapsed / 1000,
+    scenarios: rows.map((r) => {
+      const d = Math.min(r.total, left);
+      left -= d;
+      const verdicts = MOCK_EVAL.scenarios.find((s) => s.id === r.id)!.verdicts.slice(0, Math.min(runs, d));
+      return { ...r, done: d, failed: 0, verdicts };
+    }),
+  };
 }

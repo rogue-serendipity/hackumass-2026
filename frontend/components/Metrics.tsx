@@ -1,9 +1,11 @@
 "use client";
 
 import { XIcon } from "@phosphor-icons/react";
-import { useState } from "react";
-import { runEval } from "@/lib/api";
-import type { EvalResult, Verdict } from "@/lib/types";
+import { useEffect, useState } from "react";
+import { getEvalProgress, runEval } from "@/lib/api";
+import type { EvalProgress as Progress, EvalResult, Verdict } from "@/lib/types";
+import { useNow } from "@/lib/useNow";
+import { EvalProgress } from "./EvalProgress";
 
 const PRICE_IN = Number(process.env.NEXT_PUBLIC_PRICE_IN_PER_M);
 const PRICE_OUT = Number(process.env.NEXT_PUBLIC_PRICE_OUT_PER_M);
@@ -54,12 +56,40 @@ export function Metrics() {
   const [result, setResult] = useState<EvalResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<Progress | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  // One run per scenario takes about a minute and a half; three take several minutes.
+  const [runs, setRuns] = useState(1);
+  const now = useNow(loading, 500);
+
+  // Poll the backend's progress while the eval runs. If it doesn't offer
+  // progress, `progress` stays null and the panel shows elapsed time only.
+  useEffect(() => {
+    if (!loading) return;
+    let stopped = false;
+    const poll = async () => {
+      try {
+        const p = await getEvalProgress();
+        if (!stopped) setProgress(p);
+      } catch {
+        if (!stopped) setProgress(null);
+      }
+    };
+    const id = setInterval(poll, 1000);
+    void poll();
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, [loading]);
 
   async function run() {
     setLoading(true);
+    setProgress(null);
+    setStartedAt(Date.now());
     setError(null);
     try {
-      setResult(await runEval());
+      setResult(await runEval(runs));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -82,12 +112,19 @@ export function Metrics() {
             it; detection is measured over those runs.
           </p>
         </div>
-        {loading && (
-          <p className="flex items-center gap-2 text-sm text-dim" role="status">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-worker" />
-            Running the full suite. This takes a few minutes.
-          </p>
-        )}
+        <label className="flex items-center gap-2 text-sm text-dim">
+          Runs per scenario
+          <select
+            value={runs}
+            onChange={(e) => setRuns(Number(e.target.value))}
+            disabled={loading}
+            className="h-10 rounded-xs border border-line bg-panel px-2 text-sm text-text outline-none focus:border-worker disabled:opacity-50"
+          >
+            <option value={1}>1 (about 1½ min)</option>
+            <option value={2}>2</option>
+            <option value={3}>3 (several min)</option>
+          </select>
+        </label>
         <button
           type="button"
           onClick={run}
@@ -97,6 +134,13 @@ export function Metrics() {
           {loading ? "Running…" : result ? "Run again" : "Run evaluation"}
         </button>
       </div>
+
+      {loading && (
+        <EvalProgress
+          progress={progress}
+          elapsedS={startedAt && now ? (now - startedAt) / 1000 : 0}
+        />
+      )}
 
       {error && (
         <p role="alert" className="rounded-xs border border-line bg-raised px-4 py-3 text-sm">
@@ -145,7 +189,7 @@ export function Metrics() {
           </div>
 
           <p className="text-sm text-dim">
-            {result.runs_per_scenario} runs per scenario ·{" "}
+            {result.runs_per_scenario} {result.runs_per_scenario === 1 ? "run" : "runs"} per scenario ·{" "}
             <span className="text-text">{num(result.total_input_tokens)}</span> input tokens ·{" "}
             <span className="text-text">{num(result.total_output_tokens)}</span> output tokens
             {cost !== null && (

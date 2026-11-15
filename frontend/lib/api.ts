@@ -4,6 +4,7 @@
 import * as mock from "./mock";
 import {
   RUN_EVENT_NAMES,
+  type EvalProgress,
   type EvalResult,
   type Rule,
   type RunEvent,
@@ -67,6 +68,11 @@ export function getRules(): Promise<Rule[]> {
 /** Forget every learned rule. Part of the demo reset. */
 export function clearRules(): Promise<{ cleared: boolean }> {
   return USE_MOCK ? mock.clearRules() : request("/rules", { method: "DELETE" });
+}
+
+/** Progress of the evaluation in flight. Throws if the backend doesn't offer it. */
+export function getEvalProgress(): Promise<EvalProgress> {
+  return USE_MOCK ? mock.getEvalProgress() : request("/eval/progress");
 }
 
 export function runEval(runs?: number): Promise<EvalResult> {

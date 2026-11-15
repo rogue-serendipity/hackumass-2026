@@ -139,6 +139,19 @@ mark[data-culprit] {
   animation: causal-fade 0.5s ease-out both;
 }
 
+/* Evaluation progress when the backend can't report real progress. */
+@keyframes progress-indeterminate {
+  from {
+    left: -33%;
+  }
+  to {
+    left: 100%;
+  }
+}
+.progress-indeterminate {
+  animation: progress-indeterminate 1.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .card-in,
   .alarm,
@@ -150,5 +163,8 @@ mark[data-culprit] {
   mark[data-culprit],
   .ghost-in {
     animation: none;
+  }
+  .progress-indeterminate {
+    animation-duration: 4s;
   }
 }
