@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { CausalLink } from "@/components/CausalLink";
 import { InboxEditor } from "@/components/InboxEditor";
 import { JudgeCard } from "@/components/JudgeCard";
 import { Lane } from "@/components/Lane";
@@ -251,6 +252,7 @@ export default function Home() {
               startedAt={run.startedAt}
               doneAt={run.laneDoneAt.shadow}
               skippedByRule={skippedByRule}
+              missing={run.diff?.worker_only}
             />
           </div>
 
@@ -267,6 +269,11 @@ export default function Home() {
           </div>
 
           {run.ruleCreated && <LearnedRule rule={run.ruleCreated} />}
+          {/* Re-keyed per run so the line draws again on every new verdict. */}
+          <CausalLink
+            key={run.startedAt ?? 0}
+            active={tab === "tribunal" && run.verdict?.verdict === "BLOCK" && run.verdict.source !== "rule"}
+          />
           <RulesList rules={rules} onClear={forgetRules} clearing={clearingRules} />
         </div>
 

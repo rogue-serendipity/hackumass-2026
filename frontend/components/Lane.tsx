@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { cardKey, type CardStatus, type RunState } from "@/lib/runReducer";
-import type { Lane as LaneName, StepEvent } from "@/lib/types";
+import type { Lane as LaneName, ProposedAction, StepEvent } from "@/lib/types";
 import { seconds, useNow } from "@/lib/useNow";
 import { Markdown } from "./Markdown";
 import { StepCard } from "./StepCard";
@@ -17,6 +17,42 @@ interface Props {
   doneAt: number | null;
   /** Set when a Patcher rule blocked the run, so this lane never ran. */
   skippedByRule?: number | null;
+  /** Actions the other lane took that this one never did; shown as gaps. */
+  missing?: ProposedAction[];
+}
+
+/** Where an action was aimed, for the gap card's one-line description. */
+function targetOf(a: ProposedAction): string {
+  const t = a.args.with_email ?? a.args.to;
+  return typeof t === "string" ? t : "";
+}
+
+function Gap({ action, status }: { action: ProposedAction; status?: CardStatus }) {
+  const target = targetOf(action);
+  // Red is for BLOCK only, so the gap stays neutral until the Judge blocks.
+  const blocked = status?.decision === "BLOCK";
+  return (
+    <li
+      data-divergent="1"
+      className={`ghost-in rounded-sm border-2 border-dashed px-3 py-2.5 ${
+        blocked ? "border-danger/50" : "border-line"
+      }`}
+    >
+      <p
+        className={`font-mono text-base font-semibold text-dim line-through ${
+          blocked ? "decoration-danger/70" : "decoration-dim"
+        }`}
+      >
+        {action.tool}
+      </p>
+      <p className="mt-1 text-sm text-dim">
+        The Shadow never did this{target && <> · <span className="font-mono">{target}</span></>}
+      </p>
+      <p className={`mt-1 text-sm font-semibold ${blocked ? "text-danger" : "text-text"}`}>
+        The lanes split here{status?.decision === "APPROVE" && " · the Judge allowed it"}
+      </p>
+    </li>
+  );
 }
 
 const COPY: Record<LaneName, { title: string; sub: string; tone: string; dot: string }> = {
@@ -57,9 +93,22 @@ function toCards(steps: StepEvent[]): Card[] {
   return cards;
 }
 
-export function Lane({ lane, steps, statuses, runStatus, done, startedAt, doneAt, skippedByRule = null }: Props) {
+export function Lane({
+  lane,
+  steps,
+  statuses,
+  runStatus,
+  done,
+  startedAt,
+  doneAt,
+  skippedByRule = null,
+  missing = [],
+}: Props) {
   const copy = COPY[lane];
   const cards = toCards(steps);
+  // Gaps go just before the final summary, where the other lane's action sits.
+  const summaryAt = cards.findIndex((c) => c.kind === "message");
+  const gapsAt = summaryAt === -1 ? cards.length : summaryAt;
   const scroller = useRef<HTMLOListElement>(null);
   const running = runStatus === "running";
   const working = running && !done;
@@ -115,7 +164,8 @@ export function Lane({ lane, steps, statuses, runStatus, done, startedAt, doneAt
                 : "Steps appear here when you hit Run."}
           </li>
         )}
-        {cards.map((card) =>
+        {cards.map((card, i) => [
+          i === gapsAt && missing.map((a) => <Gap key={`gap-${a.index}`} action={a} status={statuses[cardKey(a.lane, a.step_index)]} />),
           card.kind === "call" ? (
             <StepCard
               key={card.call.index}
@@ -135,7 +185,8 @@ export function Lane({ lane, steps, statuses, runStatus, done, startedAt, doneAt
               <Markdown text={card.text} className="mt-1 leading-relaxed" />
             </li>
           ),
-        )}
+        ])}
+        {gapsAt === cards.length && missing.map((a) => <Gap key={`gap-${a.index}`} action={a} status={statuses[cardKey(a.lane, a.step_index)]} />)}
       </ol>
     </section>
   );

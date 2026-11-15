@@ -154,7 +154,7 @@ function Culprit({ email, quote }: { email: Email; quote: string | null }) {
         {split ? (
           <>
             {split.before}
-            <mark className="rounded-xs bg-danger/25 px-0.5 font-medium text-text ring-1 ring-danger/60">
+            <mark data-culprit="1" className="rounded-xs bg-danger/25 px-0.5 font-medium text-text ring-1 ring-danger/60">
               {split.match}
             </mark>
             {split.after}
