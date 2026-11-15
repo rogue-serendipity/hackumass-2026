@@ -36,9 +36,15 @@ export interface HudState {
   untrusted: string[]; // sources of untrusted content Hermes has read, deduped
   checks: CheckRow[];
   blocked: BlockedInfo | null; // the block being shown; null once dismissed
+  blocks: Record<string, BlockedInfo>; // every block this session, by check_id (the live feed shows them all)
+  timeline: TimelineItem[]; // what Hermes read and tried, in order
   sinkHits: number;
   sinkPreview: string | null;
 }
+
+export type TimelineItem =
+  | { kind: "observed"; observation_id: string; tool_name: string; source: string; trusted: boolean }
+  | { kind: "check"; check_id: string };
 
 export const initialHud: HudState = {
   connection: "connecting",
@@ -48,6 +54,8 @@ export const initialHud: HudState = {
   untrusted: [],
   checks: [],
   blocked: null,
+  blocks: {},
+  timeline: [],
   sinkHits: 0,
   sinkPreview: null,
 };
@@ -91,6 +99,12 @@ function upsertCheck(checks: CheckRow[], row: CheckRow): CheckRow[] {
   return next;
 }
 
+function withCheckInTimeline(s: HudState, checkId: string): TimelineItem[] {
+  return s.timeline.some((t) => t.kind === "check" && t.check_id === checkId)
+    ? s.timeline
+    : [...s.timeline, { kind: "check", check_id: checkId }];
+}
+
 /** Follow the newest session: an event from a new session starts a fresh pill. */
 function forSession(state: HudState, sessionId: unknown): HudState {
   const id = str(sessionId);
@@ -118,6 +132,20 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
         checks: s.checks.map(({ check_id, tool_name, summary, decision, source }) => ({
           check_id, tool_name, summary, decision, source,
         })),
+        blocks: Object.fromEntries(
+          s.checks
+            .filter((c) => c.decision === "block")
+            .map((c) => [c.check_id, {
+              check_id: c.check_id, tool_name: c.tool_name, summary: c.summary, shadow_summary: null,
+              reason: cleanReason(c.reason ?? ""), explanation: cleanReason(c.reason ?? ""),
+              culprit: c.culprit ?? null, source: (c.source || "llm") as GuardSource,
+            }]),
+        ),
+        // The snapshot doesn't keep the interleaving, so show reads first, then checks.
+        timeline: [
+          ...s.observations.map((o) => ({ kind: "observed" as const, ...o })),
+          ...s.checks.map((c) => ({ kind: "check" as const, check_id: c.check_id })),
+        ],
         // Don't re-open an old block on reload; the stream shows new ones.
         blocked: null,
       };
@@ -137,6 +165,10 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
             ...s,
             observed: s.observed + 1,
             untrusted: d.trusted ? s.untrusted : addUntrusted(s.untrusted, str(d.source)),
+            timeline: [...s.timeline, {
+              kind: "observed", observation_id: str(d.observation_id), tool_name: str(d.tool_name),
+              source: str(d.source), trusted: Boolean(d.trusted),
+            }],
           };
         }
         case "checking": {
@@ -146,6 +178,7 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
             checks: upsertCheck(s.checks, {
               check_id: str(d.check_id), tool_name: str(d.tool_name), summary: str(d.summary), decision: "pending",
             }),
+            timeline: withCheckInTimeline(s, str(d.check_id)),
           };
         }
         case "allowed": {
@@ -156,6 +189,7 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
               check_id: str(d.check_id), tool_name: str(d.tool_name), summary: str(d.summary),
               decision: "allow", source: str(d.source),
             }),
+            timeline: withCheckInTimeline(s, str(d.check_id)),
           };
         }
         case "blocked": {
@@ -177,6 +211,8 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
               decision: "block", source: blocked.source,
             }),
             blocked,
+            blocks: { ...s.blocks, [blocked.check_id]: blocked },
+            timeline: withCheckInTimeline(s, blocked.check_id),
           };
         }
         case "sink_hit":
@@ -201,6 +237,10 @@ export function sourceLabel(source: string): string {
   if (kind === "web") return value.replace(/^https?:\/\//, "");
   if (kind === "terminal") return `output of \`${value}\``;
   if (kind === "tool") return value;
+  if (kind === "email") {
+    const from = value.split(" from ")[1];
+    return from ? `email from ${from}` : `email ${value}`;
+  }
   return source;
 }
 

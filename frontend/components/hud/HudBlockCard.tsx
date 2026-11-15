@@ -5,7 +5,7 @@ import type { BlockedInfo } from "@/lib/hud";
 import { sourceLabel } from "@/lib/hud";
 
 /** The expanded pill: what Hermes tried, which untrusted text caused it, and what it would have done otherwise. */
-export function HudBlockCard({ blocked, onDismiss }: { blocked: BlockedInfo; onDismiss: () => void }) {
+export function HudBlockCard({ blocked, onDismiss }: { blocked: BlockedInfo; onDismiss?: () => void }) {
   const { culprit } = blocked;
   return (
     <div
@@ -15,17 +15,19 @@ export function HudBlockCard({ blocked, onDismiss }: { blocked: BlockedInfo; onD
       <div className="mb-3 flex items-center gap-2">
         <ShieldWarning size={22} weight="fill" className="text-danger" />
         <h1 className="flex-1 font-semibold text-danger">Blocked by the Shadow Agent Tribunal</h1>
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss"
-          className="rounded-xs p-1 text-dim hover:bg-raised hover:text-text"
-        >
-          <X size={16} weight="bold" />
-        </button>
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Dismiss"
+            className="rounded-xs p-1 text-dim hover:bg-raised hover:text-text"
+          >
+            <X size={16} weight="bold" />
+          </button>
+        )}
       </div>
 
-      <Label>Hermes tried to run</Label>
+      <Label>Hermes tried</Label>
       <p className="mb-3 rounded-xs border border-danger/40 bg-danger/10 px-2 py-1.5 font-mono text-xs break-all">
         {blocked.summary}
       </p>

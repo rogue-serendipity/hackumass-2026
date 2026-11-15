@@ -113,3 +113,18 @@ describe("menuBarTitle", () => {
     expect(menuBarTitle(ev(s, "sink_hit", { session_id: null, preview: "x" }))).toBe("Leak!");
   });
 });
+
+describe("timeline", () => {
+  it("records reads and checks in order, and keeps every block", () => {
+    let s = ev(live, "session_start", { session_id: "s1", task: "Check my email" });
+    s = ev(s, "observed", { session_id: "s1", observation_id: "o1", tool_name: "terminal", source: "email:e1 from records@x.org", trusted: false });
+    s = ev(s, "checking", { session_id: "s1", check_id: "c1", tool_name: "terminal", summary: "./mail reply e3" });
+    s = ev(s, "allowed", { session_id: "s1", check_id: "c1", tool_name: "terminal", summary: "./mail reply e3", source: "llm" });
+    s = ev(s, "blocked", { session_id: "s1", check_id: "c2", tool_name: "terminal", summary: "./mail forward e2", reason: "r", culprit: null });
+    expect(s.timeline.map((t) => (t.kind === "check" ? t.check_id : t.observation_id))).toEqual(["o1", "c1", "c2"]);
+    expect(Object.keys(s.blocks)).toEqual(["c2"]);
+    s = hudReducer(s, { type: "dismiss" });
+    expect(s.blocks.c2.summary).toBe("./mail forward e2"); // dismissing the card keeps it in the feed
+    expect(sourceLabel("email:e1 from records@x.org")).toBe("email from records@x.org");
+  });
+});
