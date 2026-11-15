@@ -37,7 +37,7 @@ def post(path: str, body: dict, timeout: float) -> dict:
 
 def block(reason: str) -> None:
     reason = reason.strip()
-    if NO_RETRY not in reason:
+    if "do not retry" not in reason.lower():  # the guard adds its own wording
         reason = f"{reason} {NO_RETRY}"
     print(json.dumps({"decision": "block", "reason": reason}))
 

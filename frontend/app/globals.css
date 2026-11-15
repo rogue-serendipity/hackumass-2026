@@ -168,3 +168,30 @@ mark[data-culprit] {
     animation-duration: 4s;
   }
 }
+
+/* The Hermes HUD (/hud) runs in a transparent always-on-top window: only the pill shows. */
+html.hud,
+html.hud body {
+  background: transparent;
+}
+
+@keyframes hud-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hud-card-in {
+  animation: hud-card-in 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-card-in {
+    animation: none;
+  }
+}
