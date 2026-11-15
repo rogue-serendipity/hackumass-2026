@@ -87,7 +87,7 @@ type CheckResult =
   | {
       decision: "block";
       check_id: string;
-      source: "code" | "llm" | "error";  // error = the guard failed or timed out (fail closed)
+      source: "code" | "llm" | "error" | "tamper";  // error = the guard failed or timed out (fail closed); tamper = Hermes tried to inspect or touch the Tribunal itself (H10), never held for the user
       summary: string;
       reason: string;            // shown to Hermes as the block reason; one or two sentences
       shadow_summary: string | null;  // what the Shadow did instead, e.g. "terminal: pip install …", or "nothing"
@@ -154,3 +154,10 @@ Forget all sessions and sink hits. Emits `reset`.
 ### `POST /collect` (also `GET`, `PUT`) → `{ "ok": true }`
 
 The demo's fake exfiltration endpoint. It **only logs** the byte count and the first 200 characters, and emits `sink_hit`. Nothing is stored.
+
+## Email trust and tamper protection (H10)
+
+- **Email:** for the demo's `./mail` client in `~/tribunal-mail` (`TRIBUNAL_MAIL_DIR`), `./mail list` output is trusted (headers only), and so are the contacts in `contacts.txt`. `./mail read <id>` is untrusted unless its `From:` address is a contact. Its source is `email:<id> from <address>`. `./mail list|read|outbox` are read-only (skip). `reply|forward|send` are sensitive, and the hard rule blocks sending to an address that appears only in an untrusted email.
+- **Harmless inspection commands** (`ps`, `netstat`, `lsof`, `dig`, `docker ps`, `dscacheutil`, …) are read-only (skip).
+- **Tamper (checked first, for every tool including file reads):** the guard's port (`:8100`), its process (pid, `uvicorn`), this repo, `~/.tribunal-hermes`, `~/.weathercli-telemetry` and the hook files. This is a block with `source: "tamper"`, never held for the user.
+

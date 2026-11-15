@@ -58,13 +58,19 @@ class Session:
         return "\n".join(self.task)
 
     def observe(self, tool_name: str, tool_input, result: str, cwd: str) -> Observation:
+        content = clean_result(result or "")
+        source = policy.source_of(tool_name, tool_input, cwd or self.cwd)
+        trusted = policy.is_trusted(tool_name, tool_input, cwd or self.cwd)
+        mail = policy.mail_observation(tool_name, tool_input, content)  # H10: per-email trust
+        if mail:
+            source, trusted = mail
         obs = Observation(
             observation_id=f"o{len(self.observations) + 1}",
             tool_name=tool_name,
             tool_input=tool_input,
-            source=policy.source_of(tool_name, tool_input, cwd or self.cwd),
-            trusted=policy.is_trusted(tool_name, tool_input, cwd or self.cwd),
-            content=clean_result(result or ""),
+            source=source,
+            trusted=trusted,
+            content=content,
         )
         self.observations.append(obs)
         return obs
@@ -77,7 +83,7 @@ class Session:
 
     @property
     def trusted_text(self) -> str:
-        return "\n".join([self.task_text] + [o.content for o in self.observations if o.trusted])
+        return "\n".join([self.task_text, policy.contacts_text()] + [o.content for o in self.observations if o.trusted])
 
     @property
     def untrusted(self) -> list[Observation]:

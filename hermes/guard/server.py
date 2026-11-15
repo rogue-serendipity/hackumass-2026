@@ -156,6 +156,9 @@ async def hermes_check(req: CheckRequest) -> dict:
 
 async def decide(s: Session, tool_name: str, tool_input) -> dict:
     """Code rules first, then the Shadow, then the Judge (the Judge only when they disagree)."""
+    reason = policy.tamper(tool_name, tool_input, s.cwd)  # H10: before anything else, reads included
+    if reason:
+        return block("tamper", reason)
     if not policy.is_sensitive(tool_name, tool_input):
         return {"decision": "allow", "source": "skip"}
 

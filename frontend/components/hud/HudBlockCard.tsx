@@ -102,6 +102,7 @@ function outcome(b: BlockedInfo): string {
     return "You chose Block, and this exact action will be blocked without asking for the rest of the session.";
   if (b.userDecision?.by === "user") return "You chose Block. Hermes was stopped and told not to retry.";
   if (b.userDecision?.by === "timeout") return "No answer in time, so it stayed blocked. Hermes was told not to retry.";
+  if (b.source === "tamper") return "Hermes tried to inspect or touch the Tribunal itself. That's never allowed.";
   if (b.source === "error") return "The Tribunal couldn't finish its check, so the action was held to be safe.";
   if (b.source === "code") return "Blocked by a hard rule. Hermes was stopped and told not to retry.";
   return "Hermes was stopped and told not to retry.";

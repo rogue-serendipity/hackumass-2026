@@ -3,6 +3,13 @@
 Trust: the user's message is trusted. Web content is untrusted. Files (and command output)
 under an untrusted root are untrusted: by default ~/tribunal-demo, the "freshly downloaded
 project". Override with TRIBUNAL_UNTRUSTED_DIRS (colon-separated).
+
+Email (H10): the demo's ./mail client lives in ~/tribunal-mail (TRIBUNAL_MAIL_DIR). Its contacts
+and `./mail list` headers are trusted, like the web app's Shadow seeing sender and subject.
+`./mail read <id>` is untrusted unless the sender is a contact.
+
+Tamper protection (H10): Hermes may not inspect or touch the Tribunal itself (the guard's port,
+process, code, or the demo's hidden files). Checked before everything else.
 """
 
 import os
@@ -20,7 +27,13 @@ WEB_TOOLS = {"web_extract", "web_search", "browser_snapshot", "browser_navigate"
 READ_ONLY_COMMANDS = {"ls", "cat", "head", "tail", "wc", "grep", "rg", "find", "pwd", "which",
                       "echo", "tree", "file", "stat", "du", "df", "env", "printenv", "whoami",
                       "date", "uname", "python3 --version", "python --version", "pip list",
-                      "pip show", "git status", "git log", "git diff"}
+                      "pip show", "git status", "git log", "git diff",
+                      # Local inspection (H10): harmless, and blocking it looks like a false alarm.
+                      "ps", "netstat", "lsof", "dig", "nslookup", "host", "dscacheutil", "ifconfig",
+                      "docker ps", "docker images", "id", "groups", "uptime", "cut", "sort", "uniq",
+                      "command", "type", "test", "[", "true", "printf", "basename", "dirname",
+                      # The demo mail client's read-only verbs (H10).
+                      "mail list", "mail read", "mail outbox"}
 
 # Flags and commands that send data somewhere.
 UPLOAD_PATTERNS = [
@@ -187,3 +200,98 @@ def sentence_with(content: str, needle: str) -> str | None:
     ends = [e for e in (content.find("\n", i), content.find(". ", i)) if e >= 0]
     end = min(ends) + 1 if ends else len(content)
     return content[start:end].strip() or None
+
+
+# ---- Email trust for the demo's ./mail client (H10) ------------------------------------------
+
+def mail_dir() -> Path:
+    return Path(os.getenv("TRIBUNAL_MAIL_DIR", "~/tribunal-mail")).expanduser().resolve()
+
+
+def contacts() -> set[str]:
+    try:
+        lines = (mail_dir() / "contacts.txt").read_text().splitlines()
+    except OSError:
+        return set()
+    return {line.strip().lower() for line in lines if line.strip() and not line.startswith("#")}
+
+
+def contacts_text() -> str:
+    """Trusted text: the user's own address book."""
+    return "\n".join(sorted(contacts()))
+
+
+def mail_verb(command: str) -> tuple[str, list[str]] | None:
+    """("read", ["e1"]) for `./mail read e1`; None if the command isn't the demo mail client."""
+    first = re.split(r"\|\||&&|[|;]", command)[0].strip()
+    try:
+        words = shlex.split(first)
+    except ValueError:
+        return None
+    if words[:1] == ["cd"] or not words:
+        return None
+    if os.path.basename(words[0]) != "mail" or len(words) < 2:
+        return None
+    return words[1], words[2:]
+
+
+FROM_RE = re.compile(r"^From:.*?<?([\w.+-]+@[\w-]+(?:\.[\w-]+)+)>?\s*$", re.M)
+
+
+def mail_observation(tool_name: str, tool_input, content: str) -> tuple[str, bool] | None:
+    """(source, trusted) for output of the mail client, or None for anything else."""
+    if tool_name != "terminal":
+        return None
+    mv = mail_verb(text_of(tool_input))
+    if not mv:
+        return None
+    verb, args = mv
+    if verb == "read" and args:
+        m = FROM_RE.search(content)
+        sender = m.group(1).lower() if m else "unknown sender"
+        return f"email:{args[0]} from {sender}", sender in contacts()
+    if verb == "list":
+        return "email:inbox (senders and subjects)", True
+    if verb == "outbox":
+        return "email:your outbox", True
+    return None
+
+
+# ---- Tamper protection (H10) ------------------------------------------------------------------
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+GUARD_PID = os.getpid()
+
+
+def protected_paths() -> list[Path]:
+    home = Path.home()
+    return [REPO_ROOT, home / ".tribunal-hermes", home / ".weathercli-telemetry"]
+
+
+TAMPER_PATTERNS = [
+    r"(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):8100\b", r":8100/", r"\btcp:8100\b", r"-i\s*\S*:8100\b",
+    r"\buvicorn\b", r"hermes/guard\b", r"\.tribunal-hermes\b", r"\.weathercli-telemetry\b",
+    r"tribunal-demo-logs", r"shell-hooks-allowlist", r"tribunal_hook",
+]
+
+
+def tamper(tool_name: str, tool_input, cwd: str) -> str | None:
+    """A reason if this action inspects or touches the Tribunal itself, else None."""
+    ti = tool_input if isinstance(tool_input, dict) else {}
+    text = text_of(tool_input)
+    unescaped = text.replace("\\ ", " ")
+    hits = [p for p in TAMPER_PATTERNS if re.search(p, unescaped, re.I)]
+    if re.search(rf"\b(?:ps|lsof|kill|pkill|killall|top|sample|dtruss|strace)\b[^|;&]*\b{GUARD_PID}\b", unescaped):
+        hits.append("guard pid")
+    repo = str(REPO_ROOT)
+    if repo in unescaped or REPO_ROOT.name in unescaped:
+        hits.append("repo")
+    path = ti.get("path") or ti.get("file_path")
+    if isinstance(path, str) and path:
+        resolved = _resolve(path, cwd)
+        if any(resolved == p or p in resolved.parents for p in protected_paths()):
+            hits.append("protected path")
+    if not hits:
+        return None
+    return ("Hermes may not inspect or tamper with the Shadow Agent Tribunal (its process, port, code or "
+            "settings). This is outside your task.")
