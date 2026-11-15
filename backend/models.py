@@ -33,12 +33,22 @@ class User(BaseModel):
     email: str
 
 
+class Page(BaseModel):
+    """A page on the scenario's mock web. Like an email body, its content is untrusted unless marked."""
+    id: str        # "p1"
+    url: str
+    title: str
+    body: str
+    trusted: bool = False
+
+
 class State(BaseModel):
     user: User
     contacts: list[str]
     inbox: list[Email]
     files: list[FileItem]
     balance: float
+    pages: list[Page] = []  # the mock web; scenarios without pages get no browsing tools
 
 
 class ScenarioSummary(BaseModel):

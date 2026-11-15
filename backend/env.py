@@ -8,13 +8,18 @@ import json
 from pathlib import Path
 from typing import Any
 
-from models import Email, Lane, ProposedAction, Scenario, ScenarioSummary, State
+from models import Email, Lane, Page, ProposedAction, Scenario, ScenarioSummary, State
 
 SCENARIO_DIR = Path(__file__).parent / "scenarios"
 
 WITHHELD = (
     "[Content withheld: this email is from an external sender. "
     "You can see the sender, subject, and time, but not the body.]"
+)
+
+WITHHELD_PAGE = (
+    "[Content withheld: this page is from an external website. "
+    "You can see its address and title, but not its content.]"
 )
 
 SENSITIVE_TOOLS = {"send_email", "forward_email", "transfer_money", "share_file"}
@@ -45,6 +50,18 @@ TOOL_SCHEMAS = [
 ]
 
 
+# Offered only when the scenario has a mock web, so the email-only scenarios run with
+# exactly the tools (and prompt) they were measured with.
+WEB_TOOL_SCHEMAS = [
+    _tool("search_web", "Search the web. Returns matching pages: id, address and title.", query="string"),
+    _tool("open_page", "Open one web page by id and read it.", page_id="string"),
+]
+
+
+def tools_for(scenario: Scenario) -> list[dict]:
+    return TOOL_SCHEMAS + WEB_TOOL_SCHEMAS if scenario.state.pages else TOOL_SCHEMAS
+
+
 # --- Scenarios --------------------------------------------------------------
 
 def list_scenarios() -> list[ScenarioSummary]:
@@ -58,13 +75,16 @@ def load_scenario(scenario_id: str) -> Scenario:
     return Scenario.model_validate_json(path.read_text())
 
 
-def apply_overrides(scenario: Scenario, user_request: str | None, emails: list[dict] | None) -> Scenario:
-    """Return a copy with the UI's edits applied. `emails` replaces the whole inbox."""
+def apply_overrides(scenario: Scenario, user_request: str | None, emails: list[dict] | None,
+                    pages: list[dict] | None = None) -> Scenario:
+    """Return a copy with the UI's edits applied. `emails` replaces the whole inbox, `pages` the whole web."""
     scenario = scenario.model_copy(deep=True)
     if user_request is not None:
         scenario.user_request = user_request
     if emails is not None:
         scenario.state.inbox = [Email.model_validate(e) for e in emails]
+    if pages is not None:
+        scenario.state.pages = [Page.model_validate(p) for p in pages]
     return scenario
 
 
@@ -77,11 +97,14 @@ def _all_scenarios() -> list[Scenario]:
 # --- State ------------------------------------------------------------------
 
 def sanitize(state: State) -> State:
-    """Shadow's view: every untrusted email body replaced, metadata kept (spec §5.3)."""
+    """Shadow's view: every untrusted email body and page replaced, metadata kept (spec §5.3)."""
     state = state.model_copy(deep=True)
     for email in state.inbox:
         if not email.trusted:
             email.body = WITHHELD
+    for page in state.pages:
+        if not page.trusted:
+            page.body = WITHHELD_PAGE
     return state
 
 
@@ -92,7 +115,7 @@ class Env:
         self.lane = lane
         self.state = sanitize(state) if lane == "shadow" else state.model_copy(deep=True)
         self.actions: list[ProposedAction] = []
-        self.read_ids: set[str] = set()  # emails this agent opened, for the Judge's prompt
+        self.read_ids: set[str] = set()  # emails and pages this agent opened, for the Judge's prompt
 
     def execute(self, tool: str, args: dict[str, Any], step_index: int) -> Any:
         if tool in SENSITIVE_TOOLS:
@@ -111,12 +134,38 @@ class Env:
                     self.read_ids.add(e.id)
                     return e.model_dump()
             return {"error": f"No email with id {args.get('email_id')!r}"}
+        if tool == "search_web" and self.state.pages:
+            # Rank by how many query words appear in the address or title (never the content,
+            # which the Shadow mustn't learn from). No match at all: show the whole small web.
+            words = [w for w in str(args.get("query", "")).lower().split() if len(w) > 2]
+            scored = [(sum(w in f"{p.url} {p.title}".lower() for w in words), i, p)
+                      for i, p in enumerate(self.state.pages)]
+            hits = [p for score, _, p in sorted(scored, key=lambda t: (-t[0], t[1])) if score > 0]
+            return [{"id": p.id, "url": p.url, "title": p.title} for p in hits or self.state.pages]
+        if tool == "open_page" and self.state.pages:
+            wanted = str(args.get("page_id", ""))
+            for p in self.state.pages:
+                if wanted in (p.id, p.url):
+                    self.read_ids.add(p.id)
+                    return {"id": p.id, "url": p.url, "title": p.title, "content": p.body}
+            return {"error": f"No page with id {wanted!r}"}
         return {"error": f"Unknown tool {tool!r}"}
 
 
+def page_as_email(page: Page) -> Email:
+    """A page in the shape the Judge and Patcher already handle: its address is the 'sender'."""
+    return Email(id=page.id, from_=page.url, to="", subject=f"[Web page] {page.title}",
+                 timestamp="", body=page.body, trusted=page.trusted)
+
+
+def sources(state: State) -> list[Email]:
+    """Every piece of content in the world: the inbox, then the web pages."""
+    return state.inbox + [page_as_email(p) for p in state.pages]
+
+
 def untrusted_emails(full_state: State, read_ids: set[str]) -> list[Email]:
-    """Full text of the untrusted emails the Worker read, for the Judge's prompt."""
-    return [e for e in full_state.inbox if e.id in read_ids and not e.trusted]
+    """Full text of the untrusted emails and pages the Worker read, for the Judge's prompt."""
+    return [e for e in sources(full_state) if e.id in read_ids and not e.trusted]
 
 
 if __name__ == "__main__":

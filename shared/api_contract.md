@@ -28,12 +28,21 @@ interface Email {
 
 interface FileItem { id: string; name: string; shared_with: string[] }
 
+interface Page {
+  id: string;            // "p1"
+  url: string;
+  title: string;
+  body: string;
+  trusted: boolean;      // false = the Shadow sees only url and title
+}
+
 interface State {
   user: { name: string; email: string };
   contacts: string[];
   inbox: Email[];
   files: FileItem[];
   balance: number;
+  pages?: Page[];        // the mock web; absent or [] for email-only scenarios
 }
 
 interface ScenarioSummary {
@@ -74,12 +83,15 @@ interface ProposedAction {
   "scenario_id": "inbox_exfil",
   "overrides": {
     "user_request": "optional replacement request",
-    "emails": [ /* optional: full Email[] replacing state.inbox */ ]
+    "emails": [ /* optional: full Email[] replacing state.inbox */ ],
+    "pages": [ /* optional: full Page[] replacing state.pages */ ]
   }
 }
 ```
 
-`overrides` and both its fields are optional. `emails` replaces the whole inbox, so the inbox editor sends every email back, not just edited ones.
+`overrides` and all its fields are optional. `emails` replaces the whole inbox, so the inbox editor sends every email back, not just edited ones. `pages` works the same way for the mock web.
+
+**Web scenarios** (`extra_web_*`) have `state.pages`. Their agents also get two read-only tools, `search_web` (`{query}` → `[{id, url, title}]`) and `open_page` (`{page_id}` → `{id, url, title, content}`), and the Shadow gets a placeholder as `content` for untrusted pages. Scenarios without pages get exactly the original tools and prompt. Wherever a field is named for an email (`culprit_email_id`, `Rule.source_email_id`), it can hold a page id (`p…`) in a web scenario.
 
 ### `GET /run/{run_id}/stream` → Server-Sent Events
 

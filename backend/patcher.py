@@ -10,6 +10,7 @@ import json
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
+from env import sources
 from judge import _parse_json, target_of
 from llm import Usage, chat, model_for
 from models import Diff, Email, JudgeVerdict, Scenario
@@ -109,7 +110,7 @@ async def make_rule(scenario: Scenario, d: Diff, verdict: JudgeVerdict, emails: 
 def check(scenario: Scenario) -> RuleHit | None:
     """The first stored rule that matches an untrusted email in this inbox, if any."""
     for rule in rules:
-        for email in scenario.state.inbox:
+        for email in sources(scenario.state):
             if email.trusted:
                 continue
             text = _haystack(email)
@@ -121,13 +122,16 @@ def check(scenario: Scenario) -> RuleHit | None:
 
 
 def rule_verdict(hit: RuleHit, scenario: Scenario) -> JudgeVerdict:
-    email = next(e for e in scenario.state.inbox if e.id == hit.email_id)
+    email = next(e for e in sources(scenario.state) if e.id == hit.email_id)
     return JudgeVerdict(
         verdict="BLOCK",
         source="rule",
         per_action=[],
         culprit_email_id=email.id,
-        culprit_quote=_original_case(email, max(hit.matched_terms, key=len)),
+        # The longest matched term that's in the body, so the UI has something to highlight
+        # (a page's address, or an email's sender, can match without being in the text).
+        culprit_quote=next((q for t in sorted(hit.matched_terms, key=len, reverse=True)
+                            if (q := _original_case(email, t))), None),
         explanation=f"Auto-blocked by rule #{hit.rule.id} before the assistant ran: {hit.rule.pattern_description}",
         rule_id=hit.rule.id,
     )

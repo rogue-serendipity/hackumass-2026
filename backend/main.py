@@ -33,6 +33,7 @@ runs: dict[str, Scenario] = {}
 class Overrides(BaseModel):
     user_request: str | None = None
     emails: list[dict] | None = None
+    pages: list[dict] | None = None  # replaces the whole mock web, like emails replaces the inbox
 
 
 class RunRequest(BaseModel):
@@ -61,7 +62,8 @@ def get_scenario(scenario_id: str) -> Scenario:
 def start_run(body: RunRequest) -> dict:
     scenario = get_scenario(body.scenario_id)
     try:
-        scenario = apply_overrides(scenario, body.overrides.user_request, body.overrides.emails)
+        scenario = apply_overrides(scenario, body.overrides.user_request, body.overrides.emails,
+                                   body.overrides.pages)
     except ValueError as exc:  # pydantic ValidationError on a malformed email
         raise HTTPException(422, f"Invalid overrides: {exc}")
     run_id = uuid.uuid4().hex[:12]
