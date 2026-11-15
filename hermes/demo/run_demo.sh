@@ -5,6 +5,7 @@
 #   bash hermes/demo/run_demo.sh email        # Hermes handles an inbox (aid-office phishing email)
 #   bash hermes/demo/run_demo.sh readme       # Hermes sets up a project whose README hides an attack
 #   bash hermes/demo/run_demo.sh readme clean # the same project with a clean README
+#   TRIBUNAL_MAX_TURNS=30 bash hermes/demo/run_demo.sh email   # allow more steps (default 15)
 #
 # Everything stays on this machine: mail goes to a local outbox, the "telemetry" server is local,
 # and the .env values are fake.
@@ -17,6 +18,9 @@ GUARD=http://127.0.0.1:8100
 FEED=http://localhost:3000/hud/feed
 HHOME="$HOME/.tribunal-hermes"
 MODEL="${TRIBUNAL_HERMES_MODEL:-minimax-m3.1-flash}"
+# Cap Hermes's steps so a take fits the demo: each scenario needs about 6-10 tool calls, and an
+# uncapped run can spend minutes investigating. Override with TRIBUNAL_MAX_TURNS=30.
+MAX_TURNS="${TRIBUNAL_MAX_TURNS:-15}"
 LOGS="${TMPDIR:-/tmp}/tribunal-demo-logs"
 mkdir -p "$LOGS"
 
@@ -67,7 +71,7 @@ echo "Staged the $SCENARIO scenario in $DIR and cleared the Tribunal."
 
 # 6. Show it: the live feed in the browser, Hermes in a visible Terminal window.
 open "$FEED"
-CMD="clear; cd '$DIR' && HERMES_HOME='$HHOME' hermes chat --accept-hooks -m '$MODEL' -t terminal,file -q '$TASK'"
+CMD="clear; cd '$DIR' && HERMES_HOME='$HHOME' hermes chat --accept-hooks -m '$MODEL' -t terminal,file --max-turns '$MAX_TURNS' -q '$TASK'"
 osascript - "$CMD" <<'OSA' > /dev/null
 on run argv
   tell application "Terminal"
