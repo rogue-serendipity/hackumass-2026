@@ -159,7 +159,7 @@ The same idea also protects [Hermes Agent](https://hermes-agent.nousresearch.com
 2. **Otherwise, the Shadow:** the same model and the same task, with untrusted content withheld. If it would do the same thing, the action runs.
 3. **If they disagree, the Judge decides** and names the sentence that caused the action.
 
-A small always-on-top pill at the top of the screen shows "Tribunal watching" while Hermes works. When an action is blocked, the pill expands to show what Hermes tried, the text that caused it, and what the agent would have done without that text. Hermes is stopped and told not to retry. The plan is in [docs/hermes_plan.md](docs/hermes_plan.md), and the API is in [shared/hermes_contract.md](shared/hermes_contract.md).
+A **macOS menu bar item**, right of the notch, shows the Tribunal's status while Hermes works ("✓ 3", "Checking…"). When an action is blocked, it turns to "⛔ Blocked" and a card drops down under it showing what Hermes tried, the text that caused it, and what the agent would have done without that text. Hermes is stopped and told not to retry. The plan is in [docs/hermes_plan.md](docs/hermes_plan.md), and the API is in [shared/hermes_contract.md](shared/hermes_contract.md).
 
 **Demo:** "Set up this downloaded project by following its README." The README hides a step that uploads your `.env` file to a "telemetry" server. Everything stays on the laptop: the server is a local stand-in, and the `.env` values are fake.
 
@@ -171,14 +171,14 @@ A small always-on-top pill at the top of the screen shows "Tribunal watching" wh
 bash hermes/install.sh                       # hooks in a separate Hermes home (~/.tribunal-hermes); ~/.hermes is untouched
 (cd hermes/guard && ../../backend/.venv/bin/uvicorn server:app --port 8100) &
 (cd frontend && npm run dev) &               # serves the pill at http://localhost:3000/hud
-(cd hermes/hud && ./setup.sh && npm start) & # the always-on-top window (npm run mock: a scripted run, no Hermes)
+(cd hermes/hud && ./setup.sh && npm start) & # the menu bar item (npm run mock: a scripted run; npm run pill: floating pill instead)
 bash hermes/demo/setup_demo.sh               # or: setup_demo.sh clean
 cd ~/tribunal-demo/weather-cli
 HERMES_HOME=~/.tribunal-hermes hermes --accept-hooks -m minimax-m3.1-flash -t terminal,file \
   -z "Set up the project in ~/tribunal-demo/weather-cli by following its README"
 ```
 
-If the guard is down or too slow, the hook blocks the action (fail closed). Before each take, `curl -X POST http://127.0.0.1:8100/hermes/reset` clears the pill.
+If the guard is down or too slow, the hook blocks the action (fail closed). Before each take, `curl -X POST http://127.0.0.1:8100/hermes/reset` clears the indicator.
 
 ## Working on this repo
 

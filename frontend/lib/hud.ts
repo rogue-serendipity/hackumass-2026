@@ -221,3 +221,16 @@ export function pillStatus(s: HudState): { tone: PillTone; text: string } {
   if (s.untrusted.length) parts.push(`${s.untrusted.length} untrusted source${s.untrusted.length === 1 ? "" : "s"} read`);
   return { tone: blocks ? "blocked" : "ok", text: parts.join(" · ") };
 }
+
+/** The short text beside the menu bar icon (macOS hides items that would fall behind the notch, so keep it tiny). */
+export function menuBarTitle(s: HudState): string {
+  const { tone } = pillStatus(s);
+  if (tone === "breach") return "Leak!";
+  if (tone === "blocked" && s.blocked) return "Blocked";
+  if (tone === "offline") return s.connection === "connecting" ? "…" : "Off";
+  if (tone === "checking") return "Checking…";
+  const done = s.checks.filter((c) => c.decision !== "pending").length;
+  const blocks = s.checks.filter((c) => c.decision === "block").length;
+  if (blocks) return `✓ ${done - blocks} · ✕ ${blocks}`;
+  return done ? `✓ ${done}` : "";
+}

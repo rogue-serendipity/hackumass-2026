@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanReason, hudReducer, initialHud, pillStatus, sourceLabel, type HudState } from "./hud";
+import { cleanReason, hudReducer, initialHud, menuBarTitle, pillStatus, sourceLabel, type HudState } from "./hud";
 import { hudMockScript } from "./hudMock";
 
 const live: HudState = { ...initialHud, connection: "live" };
@@ -94,5 +94,22 @@ describe("labels", () => {
   it("strips the no-retry line meant for Hermes", () => {
     expect(cleanReason("Bad. Do not retry this action or suggest that the user run it.")).toBe("Bad.");
     expect(cleanReason("Fine as is.")).toBe("Fine as is.");
+  });
+});
+
+describe("menuBarTitle", () => {
+  it("stays short through a run", () => {
+    expect(menuBarTitle(live)).toBe("");
+    expect(menuBarTitle({ ...initialHud, connection: "offline" })).toBe("Off");
+    let s = ev(live, "session_start", { session_id: "s1", task: "t" });
+    s = ev(s, "checking", { session_id: "s1", check_id: "c1", tool_name: "terminal", summary: "x" });
+    expect(menuBarTitle(s)).toBe("Checking…");
+    s = ev(s, "allowed", { session_id: "s1", check_id: "c1", tool_name: "terminal", summary: "x", source: "llm" });
+    expect(menuBarTitle(s)).toBe("✓ 1");
+    s = ev(s, "blocked", { session_id: "s1", check_id: "c2", tool_name: "terminal", summary: "y", reason: "r", culprit: null });
+    expect(menuBarTitle(s)).toBe("Blocked");
+    s = hudReducer(s, { type: "dismiss" });
+    expect(menuBarTitle(s)).toBe("✓ 1 · ✕ 1");
+    expect(menuBarTitle(ev(s, "sink_hit", { session_id: null, preview: "x" }))).toBe("Leak!");
   });
 });

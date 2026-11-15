@@ -2,11 +2,13 @@
   "name": "tribunal-hud",
   "private": true,
   "version": "0.1.0",
-  "description": "Always-on-top Shadow Agent Tribunal indicator for Hermes Agent. Shows the frontend's /hud page.",
+  "description": "Shadow Agent Tribunal indicator for Hermes Agent: a macOS menu bar item (or an always-on-top pill) showing the frontend's /hud page.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "mock": "TRIBUNAL_HUD_URL=http://localhost:3000/hud?mock=1 electron ."
+    "mock": "TRIBUNAL_HUD_URL='http://localhost:3000/hud?mock=1' electron .",
+    "pill": "TRIBUNAL_HUD_MODE=pill electron .",
+    "pill:mock": "TRIBUNAL_HUD_MODE=pill TRIBUNAL_HUD_URL='http://localhost:3000/hud?mock=1' electron ."
   },
   "devDependencies": {
     "electron": "33.2.1"
