@@ -6,12 +6,14 @@
 import asyncio
 import json
 import logging
+import time
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+import approvals
 import judge
 import policy
 import shadow
@@ -94,6 +96,7 @@ async def hermes_check(req: CheckRequest) -> dict:
     if call_id and call_id in s.results_by_call:
         return s.results_by_call[call_id]  # Hermes sometimes asks twice for the same call
     check = s.new_check(req.tool_name, req.tool_input)
+    started = time.monotonic()
     await emit("checking", {"session_id": s.session_id, "check_id": check.check_id,
                             "tool_name": req.tool_name, "summary": check.summary})
     try:
@@ -111,11 +114,23 @@ async def hermes_check(req: CheckRequest) -> dict:
         await emit("allowed", {"session_id": s.session_id, "check_id": check.check_id, "tool_name": req.tool_name,
                                "summary": check.summary, "source": result["source"]})
     else:
+        # H12 hold-and-ask: show the block, then wait briefly for the user's Block / Allow once.
         verdict = result.get("verdict") or {}
+        window = approvals.window_for(started) if result["source"] in approvals.OVERRIDABLE else 0
         await emit("blocked", {"session_id": s.session_id, "check_id": check.check_id, "tool_name": req.tool_name,
                                "summary": check.summary, "shadow_summary": result.get("shadow_summary"),
                                "reason": result["reason"], "explanation": verdict.get("explanation") or result["reason"],
-                               "culprit": result.get("culprit"), "source": result["source"]})
+                               "culprit": result.get("culprit"), "source": result["source"],
+                               "awaiting_user": window > 0,
+                               "decide_by": int((time.time() + window) * 1000) if window > 0 else None})
+        if window > 0:
+            choice, by = await approvals.wait(s.session_id, check.check_id, window)
+            await emit("decided", {"session_id": s.session_id, "check_id": check.check_id,
+                                   "decision": choice, "by": by})
+            if choice == "allow":
+                result = {"decision": "allow", "source": "user", "check_id": check.check_id,
+                          "summary": check.summary}
+                check.decision, check.source = "allow", "user"
     log.info("check %s %s -> %s (%s)", check.check_id, check.summary, result["decision"], result["source"])
     if call_id:
         s.results_by_call[call_id] = result
@@ -189,9 +204,26 @@ def hermes_state() -> dict:
     return {"sessions": [s.snapshot() for s in store.sessions.values()], "sink_hits": store.sink_hits}
 
 
+class Decision(BaseModel):
+    session_id: str
+    check_id: str
+    decision: str  # "allow" | "block"
+
+
+@app.post("/hermes/decide")
+async def hermes_decide(d: Decision) -> dict:
+    """The user's choice on a held block (H12). 409 if that check isn't waiting any more."""
+    if d.decision not in ("allow", "block"):
+        raise HTTPException(422, "decision must be 'allow' or 'block'")
+    if not approvals.resolve(d.session_id, d.check_id, d.decision):
+        raise HTTPException(409, "That action isn't waiting for a decision any more.")
+    return {"ok": True}
+
+
 @app.post("/hermes/reset")
 async def hermes_reset() -> dict:
     store.reset()
+    approvals.reset()
     await emit("reset", {})
     return {"cleared": True}
 

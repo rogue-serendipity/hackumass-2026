@@ -81,7 +81,7 @@ type CheckResult =
   | {
       decision: "allow";
       check_id: string;          // "c1", "c2", … per session
-      source: "skip" | "code" | "llm";  // skip = not sensitive; code = rules alone; llm = Shadow + Judge
+      source: "skip" | "code" | "llm" | "user";  // skip = not sensitive; code = rules alone; llm = Shadow + Judge; user = the user chose Allow once (H12)
       summary: string;           // one line, e.g. "terminal: pip install -r requirements.txt"
     }
   | {
@@ -109,6 +109,7 @@ Named events (`event:` line, then a JSON `data:` line), for the HUD. The stream 
 | `checking` | `{ session_id, check_id, tool_name, summary }` |
 | `allowed` | `{ session_id, check_id, tool_name, summary, source: "skip" \| "code" \| "llm" }` |
 | `blocked` | `{ session_id, check_id, tool_name, summary, shadow_summary, reason, explanation, culprit, source }` (`explanation` is `verdict.explanation` or `reason`) |
+| `decided` | `{ session_id, check_id, decision: "allow" \| "block", by: "user" \| "timeout" }`. The outcome of a held block (H12). After `allow`, the action ran. |
 | `sink_hit` | `{ session_id: null, bytes, preview }`. Something reached `/collect`, so an attack got through. The HUD should show this loudly. |
 | `reset` | `{}` |
 
@@ -128,6 +129,21 @@ interface GuardState {
   sink_hits: number;
 }
 ```
+
+### Hold-and-ask (H12)
+
+When the guard would block, it doesn't answer the hook right away. It emits `blocked` with two extra fields, then waits up to `TRIBUNAL_APPROVAL_S` (default 20 s, and always short enough to answer within the hook's 45 s) for the user:
+
+- `awaiting_user: boolean`: the block card should show **Block** (default) and **Allow once**.
+- `decide_by: number | null`: epoch milliseconds when the wait ends, for a countdown.
+
+#### `POST /hermes/decide` → `{ "ok": true }`
+
+```json
+{ "session_id": "…", "check_id": "c3", "decision": "allow" | "block" }
+```
+
+Returns 409 if that check isn't waiting any more (already decided, timed out, or reset), and 422 for any other `decision`. The guard then emits `decided`. **On `allow`,** `/hermes/check` returns `{decision: "allow", source: "user", …}` and the action runs once. **On `block` or timeout,** the hook gets the original block. Allowing once never creates a rule; the next suspicious action is held again.
 
 ### `POST /hermes/reset` → `{ "cleared": true }`
 
