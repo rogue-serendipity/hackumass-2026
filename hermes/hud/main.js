@@ -6,7 +6,7 @@ const path = require("path");
 const URL = process.env.TRIBUNAL_HUD_URL || "http://localhost:3000/hud";
 const WIDTH = 576;
 const COLLAPSED = 64;
-const EXPANDED = 440;
+const EXPANDED = 520;
 
 let win;
 
