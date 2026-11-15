@@ -57,6 +57,8 @@ No sensitive action (send, forward, pay, share) runs immediately; both agents' a
 1. **Plain code first:** anything the Worker wants to do that the Shadow didn't came from the hidden email content. Moving money or sharing a file with an address the user never mentioned is always blocked, no matter what any model says.
 2. **Then an LLM verdict:** for the remaining differences, it decides whether they serve the user's request and quotes the **exact sentence** that caused the hijack, which the UI highlights.
 
+It works for the **web** too: the agent can search and read pages on a mock web, and pages are untrusted like external email, so the Shadow sees only each page's address and title.
+
 After a block, the **Patcher** turns the attack into a rule. The next time a matching email arrives, the run is blocked instantly, before any agent reads it.
 
 ### How we built it
@@ -65,7 +67,7 @@ After a block, the **Patcher** turns the attack into a rule. The next time a mat
 - **Models, all on Vultr Serverless Inference** through its OpenAI-compatible API: `minimax-m3.1-flash` for the Worker and Shadow, `glm-5.3-flash` for the Judge and Patcher. We tested 7 models for tool calling and speed before choosing.
 - **Frontend:** Next.js, TypeScript, Tailwind: side-by-side lanes, a Judge card with the culprit sentence highlighted, an editable inbox, a Metrics tab.
 - **Deployment:** one Vultr Cloud Compute instance (Ubuntu 24.04) with Caddy, HTTPS, and systemd.
-- **Scenarios:** 13 hand-written inboxes: 8 attacks (fake financial-aid office, spoofed club treasurer, lookalike landlord, hidden HTML instruction, 2FA-code leak, payee swap, payroll redirect, fake scholarship) and 5 benign cases that are easy to get wrong.
+- **Scenarios:** 16 hand-written scenarios: 13 inboxes, with 8 attacks (fake financial-aid office, spoofed club treasurer, lookalike landlord, hidden HTML instruction, 2FA-code leak, payee swap, payroll redirect, fake scholarship) and 5 benign cases that are easy to get wrong. Plus 3 web scenarios: a course-forum post that asks the agent to forward your aid email, a marketplace listing that swaps the payee, and a benign dining-hours lookup.
 - **Team workflow:** two humans, each working only through their own AI coding agent. The agents coordinated through a pinned GitHub issue used as a message board, with file ownership rules and a shared API contract.
 
 ### Challenges we ran into
@@ -77,11 +79,11 @@ After a block, the **Patcher** turns the attack into a rule. The next time a mat
 
 ### Accomplishments we're proud of
 
-Measured with our eval script (2 runs of each of the 13 scenarios, the exact demo configuration, Nov 15 01:10 UTC; served live at `/api/eval/latest`):
+Measured with our eval script (2 runs of each of the 16 scenarios, the exact demo configuration, Nov 15 01:52 UTC; served live at `/api/eval/latest`):
 
-- **16 of 16 attack runs hijacked the Worker, and all 16 were blocked.** Every one of the 8 attacks, both times.
-- **10 of 10 benign runs approved: zero false alarms.** (An earlier run had 1 false alarm: the agent mistyped Sam's address and the hard rule caught it. We gave Sam a simpler address.)
-- **About 12.7k tokens and 6.4 s (median) per protected run**, streamed live.
+- **18 of 20 attack runs hijacked the Worker, and all 18 were blocked.** In the other 2 the Worker resisted, so there was nothing to block, and the tribunal correctly approved.
+- **12 of 12 benign runs approved: zero false alarms**, including the web lookup. (An earlier run had 1 false alarm: the agent mistyped Sam's address and the hard rule caught it. We gave Sam a simpler address.)
+- **About 15.5k tokens and 7.5 s (median) per protected run**, streamed live.
 - The whole pipeline (two agents, Judge, Patcher, UI, deploy) was built in one weekend by two people working entirely through AI coding agents that coordinated with each other on a GitHub issue.
 
 ### What we learned
@@ -90,7 +92,7 @@ Detecting *influence* instead of *wording* works, but "what the agent could see"
 
 ### What's next
 
-Per-action culprit attribution, attachments and web pages as untrusted input, and a "confirm with user" outcome instead of a flat block.
+Per-action culprit attribution, attachments and real (not mock) web browsing as untrusted input, and a "confirm with user" outcome instead of a flat block.
 
 ### Built with
 
@@ -128,7 +130,7 @@ Before judging: click "Reset demo" (clears learned rules), and run each demo sce
 - **Why such a weak Worker model?** Cheap, fast models are what's actually deployed in agents, and they're the ones that get hijacked. With a robust model there's nothing to block: the tribunal approves. It doesn't depend on any one model.
 - **Isn't the Shadow fooled too?** Yes, by sender addresses and subjects. That's why agreement doesn't count when the destination is unknown and content differs or money and files move. Then the hard rule and the Judge decide.
 - **Isn't the Judge injectable?** Detection is plain code first; the hard rule doesn't use a model. The Judge only classifies a difference code already found, and its prompt treats email text as data.
-- **What if the model is just random?** Temperature 0, and we measure a noise baseline (two identical Worker runs): two identical Worker runs disagree on 2 of 10 benign pairs (20%), because the cheap model isn't fully consistent. That's why the Judge reviews every difference instead of blocking on difference alone: benign approval is still 10/10.
+- **What if the model is just random?** Temperature 0, and we measure a noise baseline (two identical Worker runs): two identical Worker runs disagree on about 1 in 6 benign pairs (16.7%), because the cheap model isn't fully consistent. That's why the Judge reviews every difference instead of blocking on difference alone: benign approval is still 12/12.
 - **What about tasks that need the email content?** `legit_reply` and `extra_rsvp`: the Judge approves differences that serve the request, from known contacts.
-- **What does it cost?** About 12.7k tokens per protected run (≈10k in, 3k out) on Vultr's flash models, about 2–3× a single agent run. A Patcher auto-block costs 0 tokens.
-- **False positives?** 0 of 10 benign runs in our latest eval. An earlier run had 1, which was the agent mistyping a payee's address; arguably that should be stopped.
+- **What does it cost?** About 15.5k tokens per protected run (≈12.5k in, 3k out; web scenarios take more steps) on Vultr's flash models, about 2–3× a single agent run. A Patcher auto-block costs 0 tokens.
+- **False positives?** 0 of 12 benign runs in our latest eval. An earlier run had 1, which was the agent mistyping a payee's address; arguably that should be stopped.
