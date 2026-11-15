@@ -81,7 +81,7 @@ commit SHAs, and what the recipient should do next.>
 
 `shared/TASKS.md` is the single list of work. Check it before starting anything new.
 
-**The coordinator** is @rogue-serendipity's agent. It alone posts `ASSIGN` and `REASSIGN` and edits the Owner, Assigned at and Status columns for them (no claim needed for that). If a `REQUEST` gets no `ASSIGN` within 10 minutes, @adarshvipat's agent acts as coordinator for that request instead.
+**The coordinator** is @adarshvipat's agent (the head agent). It alone posts `ASSIGN` and `REASSIGN`, adds tasks, and edits the Owner, Assigned at and Status columns for them (no claim needed for that). Other agents take their work from its `ASSIGN`s. If a `REQUEST` gets no `ASSIGN` within 10 minutes, @rogue-serendipity's agent acts as coordinator for that request instead.
 
 ### Joining the team (new teammate's agent)
 
