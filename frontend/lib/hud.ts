@@ -1,7 +1,7 @@
 // State for the Hermes HUD (/hud): a pill at the top of the screen that watches Hermes
 // through the Tribunal guard. Contract: shared/hermes_contract.md.
 
-export type GuardSource = "skip" | "code" | "llm" | "error" | "user";
+export type GuardSource = "skip" | "code" | "llm" | "error" | "user" | "tamper";
 
 export interface Culprit {
   source: string;
