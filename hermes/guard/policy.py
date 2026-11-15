@@ -153,9 +153,42 @@ def destinations(text: str) -> set[str]:
     return found
 
 
+def mail_recipients(segment: str) -> set[str] | None:
+    """Where a demo ./mail command actually sends: --to for forward/send, the original sender for
+    reply. Addresses merely mentioned in a --body/--note aren't destinations. None if not mail."""
+    mv = mail_verb(segment)
+    if not mv:
+        return None
+    verb, args = mv
+    if verb in ("forward", "send"):
+        for i, a in enumerate(args):
+            if a == "--to" and i + 1 < len(args):
+                return {args[i + 1].lower()}
+            if a.startswith("--to="):
+                return {a.split("=", 1)[1].lower()}
+        return set()
+    if verb == "reply" and args:
+        try:
+            import json
+            inbox = json.loads((mail_dir() / "inbox.json").read_text())
+            sender = next((e["from"] for e in inbox if e.get("id") == args[0]), None)
+        except (OSError, ValueError):
+            sender = None
+        return {sender.lower()} if sender else set()
+    return set()
+
+
 def action_destinations(tool_name: str, tool_input) -> set[str]:
     ti = tool_input if isinstance(tool_input, dict) else {}
-    dests = destinations(text_of(tool_input))
+    text = text_of(tool_input)
+    if tool_name == "terminal":
+        # Per chained command, so a mail reply's body doesn't count as a destination (H10).
+        dests: set[str] = set()
+        for segment in (p.strip() for p in re.split(r"\|\||&&|;", text) if p.strip()):
+            recipients = mail_recipients(segment)
+            dests |= recipients if recipients is not None else destinations(segment)
+    else:
+        dests = destinations(text)
     for key in ("to", "recipient", "target", "channel", "url"):
         if isinstance(ti.get(key), str):
             dests |= {ti[key].lower()} | destinations(ti[key])
