@@ -40,8 +40,11 @@ export function TopBar({
 
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-ink">
-      <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-5 gap-y-3 px-6 py-3">
-        <div className="mr-auto flex items-baseline gap-3">
+      {/* min-h keeps the bar the same height with or without the Tribunal controls. */}
+      <div className="mx-auto flex min-h-16 max-w-[1500px] flex-wrap items-center gap-x-5 gap-y-3 px-6 py-3">
+        {/* The view switcher sits beside the title, so it stays put when the
+            Tribunal-only controls on the right appear or disappear. */}
+        <div className="flex items-baseline gap-3">
           <h1 className="text-xl font-semibold tracking-tight">
             Shadow Agent Tribunal
           </h1>
@@ -67,7 +70,7 @@ export function TopBar({
         </nav>
 
         {tab === "tribunal" && (
-          <div className="flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-3">
             {selected && (
               <Tag tone={selected.category === "attack" ? "hollow" : "solid"}>
                 {selected.category}
