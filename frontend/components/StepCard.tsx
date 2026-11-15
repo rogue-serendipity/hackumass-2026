@@ -28,8 +28,9 @@ function preview(value: unknown): { text: string; withheld: boolean } {
   if (Array.isArray(value)) {
     return { text: `${value.length} ${value.length === 1 ? "item" : "items"}`, withheld: false };
   }
-  if (value && typeof value === "object" && "body" in value) {
-    const body = show((value as { body: unknown }).body);
+  if (value && typeof value === "object" && ("body" in value || "content" in value)) {
+    const v = value as { body?: unknown; content?: unknown };
+    const body = show(v.body ?? v.content);
     return { text: body, withheld: body.startsWith(WITHHELD_PREFIX) };
   }
   const text = value === undefined ? "" : show(value);
@@ -76,7 +77,7 @@ function frame(status: CardStatus | undefined) {
 }
 
 /** What the Shadow got instead of an external email's body: shown, not just said. */
-function Redacted() {
+function Redacted({ page = false }: { page?: boolean }) {
   return (
     <div className="mt-1.5">
       <div aria-hidden className="flex flex-col gap-1">
@@ -84,7 +85,9 @@ function Redacted() {
         <span className="h-2.5 w-8/12 rounded-xs bg-dim/35" />
       </div>
       <p className="mt-1.5 font-mono text-xs text-dim">
-        Body withheld: external sender. The Shadow sees only who sent it, the subject and the time.
+        {page
+          ? "Page withheld: external website. The Shadow sees only its address and title."
+          : "Body withheld: external sender. The Shadow sees only who sent it, the subject and the time."}
       </p>
     </div>
   );
@@ -102,7 +105,7 @@ export function StepCard({ call, result, status }: Props) {
           <span className="text-dim">({argsInline(args)})</span>
         </p>
         {p && p.withheld ? (
-          <Redacted />
+          <Redacted page={tool === "open_page"} />
         ) : (
           p && p.text && <p className="mt-1 line-clamp-2 text-sm text-dim">{p.text}</p>
         )}

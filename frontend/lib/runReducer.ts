@@ -3,6 +3,7 @@ import type {
   Email,
   JudgeVerdict,
   Lane,
+  Page,
   ProposedAction,
   Rule,
   RunEvent,
@@ -22,6 +23,8 @@ export interface RunState {
   error: string | null;
   /** The inbox exactly as posted with this run; the Judge card highlights in it. */
   sentEmails: Email[];
+  /** The mock web as posted with this run, for a culprit that is a page. */
+  sentPages: Page[];
   /** Wall-clock ms (Date.now()) for the run's milestones, for elapsed-time display. */
   startedAt: number | null;
   laneDoneAt: Record<Lane, number | null>;
@@ -29,7 +32,7 @@ export interface RunState {
 }
 
 export type RunAction =
-  | { type: "start"; emails: Email[]; at?: number }
+  | { type: "start"; emails: Email[]; pages?: Page[]; at?: number }
   | { type: "event"; ev: RunEvent; at?: number }
   | { type: "reset" };
 
@@ -43,6 +46,7 @@ export const initialRunState: RunState = {
   ruleCreated: null,
   error: null,
   sentEmails: [],
+  sentPages: [],
   startedAt: null,
   laneDoneAt: { worker: null, shadow: null },
   endedAt: null,
@@ -55,6 +59,7 @@ export function runReducer(state: RunState, action: RunAction): RunState {
       ...initialRunState,
       status: "running",
       sentEmails: action.emails,
+      sentPages: action.pages ?? [],
       startedAt: action.at ?? Date.now(),
     };
   }

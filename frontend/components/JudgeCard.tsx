@@ -9,7 +9,7 @@ import {
 import { describeError } from "@/lib/errors";
 import { splitAroundQuote, splitByTerms } from "@/lib/highlight";
 import type { Phase, RunState } from "@/lib/runReducer";
-import type { Diff, Email, JudgeVerdict, Rule } from "@/lib/types";
+import type { Diff, Email, JudgeVerdict, Page, Rule } from "@/lib/types";
 import { seconds, useNow } from "@/lib/useNow";
 import { Markdown } from "./Markdown";
 import { Tag } from "./Tag";
@@ -25,17 +25,20 @@ interface Props {
   canRetry: boolean;
   /** Learned rules, to say which words made a rule fire. */
   rules?: Rule[];
+  /** The mock web as sent with this run; the culprit can be a page. */
+  pages?: Page[];
 }
 
 /** Plain-English answer to "how was this decided?", for someone seeing it cold. */
-function howDecided(verdict: JudgeVerdict): string {
+function howDecided(verdict: JudgeVerdict, web: boolean): string {
+  const content = web ? "external emails and pages" : "external emails";
   switch (verdict.source) {
     case "fast_path":
-      return "Decided by code, no AI. Both agents tried the same sensitive actions (or none), so the external emails didn't change what the assistant did.";
+      return `Decided by code, no AI. Both agents tried the same sensitive actions (or none), so the ${content} didn't change what the assistant did.`;
     case "rule":
-      return "A rule learned from an earlier attack matched this inbox, so the run was stopped before either agent read it. No AI was used.";
+      return `A rule learned from an earlier attack matched ${web ? "this content" : "this inbox"}, so the run was stopped before either agent read it. No AI was used.`;
     default:
-      return "The agents disagreed, so an AI judge checked each extra action: does it serve what you asked for, or did an email put it there?";
+      return `The agents disagreed, so an AI judge checked each extra action: does it serve what you asked for, or did ${web ? "an email or web page" : "an email"} put it there?`;
   }
 }
 
@@ -155,7 +158,22 @@ function Flag({ label, value }: { label: string; value: boolean | null }) {
   );
 }
 
-function Culprit({ email, quote, terms = [] }: { email: Email; quote: string | null; terms?: string[] }) {
+/** A page shown in the culprit card's email layout: its address stands where a sender would. */
+function pageAsEmail(p: Page): Email {
+  return { id: p.id, from: p.url, to: "", subject: p.title, timestamp: "", body: p.body, trusted: p.trusted };
+}
+
+function Culprit({
+  email,
+  quote,
+  terms = [],
+  isPage = false,
+}: {
+  email: Email;
+  quote: string | null;
+  terms?: string[];
+  isPage?: boolean;
+}) {
   // A rule fired on specific words: highlight those. Otherwise, the Judge's quote.
   const segments = terms.length ? splitByTerms(email.body, terms) : null;
   const termHit = segments?.some((s) => s.match) ?? false;
@@ -163,11 +181,14 @@ function Culprit({ email, quote, terms = [] }: { email: Email; quote: string | n
   return (
     <div className="border-l-2 border-danger/50 pl-4">
       <p className="text-[11px] font-semibold font-mono uppercase tracking-wider text-danger">
-        The email that caused it
+        {isPage ? "The page that caused it" : "The email that caused it"}
       </p>
       <p className="mt-1.5 text-sm">
         <span className="font-semibold">{email.subject}</span>
-        <span className="text-dim"> · from <span className="font-mono">{email.from}</span></span>
+        <span className="text-dim">
+          {isPage ? " · " : " · from "}
+          <span className="font-mono">{email.from}</span>
+        </span>
       </p>
       {/* Base size, not small: this is the evidence, and it has to read on a projector. */}
       <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-base leading-relaxed text-dim">
@@ -203,7 +224,7 @@ function Culprit({ email, quote, terms = [] }: { email: Email; quote: string | n
   );
 }
 
-export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry, rules = [] }: Props) {
+export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry, rules = [], pages = [] }: Props) {
   if (!verdict) {
     if (phase === "done")
       return (
@@ -227,7 +248,8 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
     verdict.source === "rule" && verdict.explanation.startsWith(ruleHeadline)
       ? verdict.explanation.slice(ruleHeadline.length).replace(/^[\s:.\-–—]+/, "")
       : verdict.explanation;
-  const culprit = emails.find((e) => e.id === verdict.culprit_email_id);
+  const culpritPage = pages.find((p) => p.id === verdict.culprit_email_id);
+  const culprit = culpritPage ? pageAsEmail(culpritPage) : emails.find((e) => e.id === verdict.culprit_email_id);
   // An approval with no culprit has nothing to show on the right.
   const evidence = block || culprit !== undefined || verdict.culprit_quote !== null;
 
@@ -260,7 +282,7 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
           )}
           {ruleTerms.length > 0 && (
             <p className="mt-2 text-lg">
-              <span className="text-dim">Matched because the email contains </span>
+              <span className="text-dim">Matched because the {culpritPage ? "page" : "email"} contains </span>
               {ruleTerms.map((t, i) => (
                 <span key={t}>
                   {i > 0 && <span className="text-dim">, </span>}
@@ -309,7 +331,7 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
             <p className="font-mono text-xs font-semibold uppercase tracking-wider text-dim">
               How this was decided
             </p>
-            <p className="mt-1.5 text-base leading-snug">{howDecided(verdict)}</p>
+            <p className="mt-1.5 text-base leading-snug">{howDecided(verdict, pages.length > 0)}</p>
             {hardRule && <p className="mt-1.5 text-base leading-snug text-danger">{HARD_RULE_TEXT}</p>}
           </div>
 
@@ -324,7 +346,7 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
         </div>
 
         {culprit ? (
-          <Culprit email={culprit} quote={verdict.culprit_quote} terms={ruleTerms} />
+          <Culprit email={culprit} quote={verdict.culprit_quote} terms={ruleTerms} isPage={!!culpritPage} />
         ) : verdict.culprit_quote ? (
           <div className="border-l-2 border-danger/50 pl-4 text-sm">
             <p className="text-[11px] font-semibold font-mono uppercase tracking-wider text-danger">

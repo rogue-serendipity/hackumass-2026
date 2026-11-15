@@ -20,12 +20,22 @@ export interface FileItem {
   shared_with: string[];
 }
 
+/** A page on the scenario's mock web. Untrusted unless marked; the Shadow sees only url and title. */
+export interface Page {
+  id: string; // "p1"
+  url: string;
+  title: string;
+  body: string;
+  trusted: boolean;
+}
+
 export interface State {
   user: { name: string; email: string };
   contacts: string[];
   inbox: Email[];
   files: FileItem[];
   balance: number;
+  pages?: Page[]; // the mock web; absent or empty for email-only scenarios
 }
 
 export interface ScenarioSummary {
@@ -59,6 +69,7 @@ export interface ProposedAction {
 export interface RunOverrides {
   user_request?: string;
   emails?: Email[];
+  pages?: Page[];
 }
 
 export interface ToolCallData {

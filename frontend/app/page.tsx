@@ -7,6 +7,7 @@ import { JudgeCard } from "@/components/JudgeCard";
 import { Lane } from "@/components/Lane";
 import { Metrics } from "@/components/Metrics";
 import { RequestBox } from "@/components/RequestBox";
+import { PagesEditor } from "@/components/PagesEditor";
 import { LearnedRule, RulesList } from "@/components/Rules";
 import { TopBar, type Tab } from "@/components/TopBar";
 import {
@@ -25,7 +26,7 @@ import {
   phaseOf,
   runReducer,
 } from "@/lib/runReducer";
-import type { Email, Rule, Scenario, ScenarioSummary } from "@/lib/types";
+import type { Email, Page, Rule, Scenario, ScenarioSummary } from "@/lib/types";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -36,6 +37,8 @@ export default function Home() {
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [request, setRequest] = useState("");
   const [emails, setEmails] = useState<Email[]>([]);
+  const [pages, setPages] = useState<Page[]>([]);
+  const [pagesOpen, setPagesOpen] = useState(true);
   const [inboxOpen, setInboxOpen] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [run, dispatch] = useReducer(runReducer, initialRunState);
@@ -67,6 +70,8 @@ export default function Home() {
         setScenario(loaded);
         setRequest(loaded.user_request);
         setEmails(loaded.state.inbox);
+        setPages(loaded.state.pages ?? []);
+        setPagesOpen(true);
         setInboxOpen(true);
         setLoadError(null);
       } catch (e) {
@@ -131,6 +136,7 @@ export default function Home() {
     if (scenario) {
       setRequest(scenario.user_request);
       setEmails(scenario.state.inbox);
+      setPages(scenario.state.pages ?? []);
     }
     setInboxOpen(true);
     setTab("tribunal");
@@ -141,7 +147,8 @@ export default function Home() {
     if (!scenario || run.status === "running") return;
     stopRun();
     const mine = generation.current;
-    dispatch({ type: "start", emails, at: Date.now() });
+    dispatch({ type: "start", emails, pages, at: Date.now() });
+    setPagesOpen(false);
     setInboxOpen(false);
     requestAnimationFrame(() =>
       lanes.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
@@ -150,7 +157,8 @@ export default function Home() {
       const { run_id } = await startRun({
         scenario_id: scenario.id,
         // `emails` replaces the whole inbox, so always send all of them.
-        overrides: { user_request: request, emails },
+        // Same for `pages`, sent only when the scenario has a mock web.
+        overrides: { user_request: request, emails, ...(scenario.state.pages?.length ? { pages } : {}) },
       });
       if (generation.current !== mine) return;
       closeStream.current = openRunStream(run_id, (ev) => {
@@ -179,16 +187,22 @@ export default function Home() {
   const skippedByRule = autoBlockedBy(run);
   // What each lane can read, from the inbox this run used (or will use).
   const inbox = run.status === "idle" ? emails : run.sentEmails;
+  const web = run.status === "idle" ? pages : run.sentPages;
   const external = inbox.filter((e) => !e.trusted).length;
+  const externalPages = web.filter((p) => !p.trusted).length;
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-  const workerSub =
-    inbox.length === 1 ? "Reads the one email" : inbox.length === 2 ? "Reads both emails" : `Reads all ${plural(inbox.length, "email")}`;
-  const shadowSub =
-    external === 0
-      ? "No external emails to withhold"
-      : external === 1
-        ? "Can't read the external email"
-        : `Can't read the ${plural(external, "external email")}`;
+  const workerSub = web.length
+    ? `Reads all ${plural(inbox.length, "email")} and ${plural(web.length, "page")}`
+    : inbox.length === 1
+      ? "Reads the one email"
+      : inbox.length === 2
+        ? "Reads both emails"
+        : `Reads all ${plural(inbox.length, "email")}`;
+  const hidden = [
+    external && (external === 1 ? "the external email" : `the ${plural(external, "external email")}`),
+    externalPages && (externalPages === 1 ? "the external page" : `the ${plural(externalPages, "external page")}`),
+  ].filter(Boolean);
+  const shadowSub = hidden.length ? `Can't read ${hidden.join(" or ")}` : "Nothing external to withhold";
 
   return (
     <>
@@ -244,6 +258,17 @@ export default function Home() {
             />
           )}
 
+          {scenario && (scenario.state.pages?.length ?? 0) > 0 && (
+            <PagesEditor
+              pages={pages}
+              original={scenario.state.pages ?? []}
+              onChange={setPages}
+              open={pagesOpen}
+              onToggle={() => setPagesOpen((o) => !o)}
+              disabled={running}
+            />
+          )}
+
           <div ref={lanes} className="grid scroll-mt-20 gap-4 lg:grid-cols-2">
             <Lane
               lane="worker"
@@ -280,6 +305,7 @@ export default function Home() {
               onRetry={handleRun}
               canRetry={canRun}
               rules={rules}
+              pages={run.sentPages}
             />
           </div>
 
