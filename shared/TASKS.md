@@ -26,7 +26,7 @@ Only the coordinator (see `AGENTS.md` §5) assigns or reassigns tasks, and it up
 | H1 | Pin the Hermes guard contract (endpoints + SSE events in `docs/hermes_plan.md`). Suggested: @rogue-serendipity | @rogue-serendipity | done | `shared/hermes_contract.md` | 2026-11-15 03:10 | H0 |
 | H2 | Hermes guard service skeleton: endpoints, session store, SSE, sink, fail-closed. Suggested: @rogue-serendipity | @rogue-serendipity | in progress | `hermes/guard/server.py`, `hermes/guard/session.py` | 2026-11-15 03:10 | H1 |
 | H3 | Hermes policy + Shadow + Judge, with tests. Suggested: @rogue-serendipity | @rogue-serendipity | in progress | `hermes/guard/policy.py`, `hermes/guard/shadow.py`, `hermes/guard/judge.py`, `hermes/guard/tests/` | 2026-11-15 03:10 | H2 |
-| H4 | Hermes hook script + `install.sh`. Suggested: @adarshvipat | @adarshvipat | assigned | `hermes/hooks/`, `hermes/install.sh` | 2026-11-15 03:10 | H0, H1 |
+| H4 | Hermes hook script + `install.sh`. Suggested: @adarshvipat | @adarshvipat | done | `hermes/hooks/`, `hermes/install.sh` | 2026-11-15 03:10 | H0, H1 |
 | H5 | HUD page: pill + expanded block card, mock event stream for dev. Suggested: @adarshvipat | @adarshvipat | assigned | `frontend/app/hud/`, `frontend/components/hud/` | 2026-11-15 03:10 | H1 |
 | H6 | Electron always-on-top HUD shell (cut first if short on time). Suggested: @adarshvipat | @adarshvipat | assigned | `hermes/hud/` | 2026-11-15 03:10 | H5 |
 | H7 | Hermes demo world: weather-cli clean + poisoned README, fake `.env`, `setup_demo.sh`; Hermes takes the bait ≥2/3. Suggested: @rogue-serendipity | @rogue-serendipity | assigned | `hermes/demo/` | 2026-11-15 03:10 | H3, H4 |
