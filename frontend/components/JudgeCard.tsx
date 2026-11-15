@@ -7,9 +7,9 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { describeError } from "@/lib/errors";
-import { splitAroundQuote } from "@/lib/highlight";
+import { splitAroundQuote, splitByTerms } from "@/lib/highlight";
 import type { Phase, RunState } from "@/lib/runReducer";
-import type { Diff, Email, JudgeVerdict } from "@/lib/types";
+import type { Diff, Email, JudgeVerdict, Rule } from "@/lib/types";
 import { seconds, useNow } from "@/lib/useNow";
 import { Markdown } from "./Markdown";
 import { Tag } from "./Tag";
@@ -23,7 +23,24 @@ interface Props {
   run: Pick<RunState, "startedAt" | "laneDone" | "error">;
   onRetry: () => void;
   canRetry: boolean;
+  /** Learned rules, to say which words made a rule fire. */
+  rules?: Rule[];
 }
+
+/** Plain-English answer to "how was this decided?", for someone seeing it cold. */
+function howDecided(verdict: JudgeVerdict): string {
+  switch (verdict.source) {
+    case "fast_path":
+      return "Decided by code, no AI. Both agents tried the same sensitive actions (or none), so the external emails didn't change what the assistant did.";
+    case "rule":
+      return "A rule learned from an earlier attack matched this inbox, so the run was stopped before either agent read it. No AI was used.";
+    default:
+      return "The agents disagreed, so an AI judge checked each extra action: does it serve what you asked for, or did an email put it there?";
+  }
+}
+
+const HARD_RULE_TEXT =
+  "Hard rule: money or files going to an address you never mentioned are blocked automatically. No AI can override it.";
 
 /** Real runs take 5–9 s; past this, say why it might be slow. */
 const SLOW_MS = 20_000;
@@ -138,8 +155,11 @@ function Flag({ label, value }: { label: string; value: boolean | null }) {
   );
 }
 
-function Culprit({ email, quote }: { email: Email; quote: string | null }) {
-  const split = splitAroundQuote(email.body, quote);
+function Culprit({ email, quote, terms = [] }: { email: Email; quote: string | null; terms?: string[] }) {
+  // A rule fired on specific words: highlight those. Otherwise, the Judge's quote.
+  const segments = terms.length ? splitByTerms(email.body, terms) : null;
+  const termHit = segments?.some((s) => s.match) ?? false;
+  const split = termHit ? null : splitAroundQuote(email.body, quote);
   return (
     <div className="border-l-2 border-danger/50 pl-4">
       <p className="text-[11px] font-semibold font-mono uppercase tracking-wider text-danger">
@@ -151,7 +171,17 @@ function Culprit({ email, quote }: { email: Email; quote: string | null }) {
       </p>
       {/* Base size, not small: this is the evidence, and it has to read on a projector. */}
       <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-base leading-relaxed text-dim">
-        {split ? (
+        {termHit && segments ? (
+          segments.map((s, i) =>
+            s.match ? (
+              <mark key={i} data-culprit="1" className="rounded-xs bg-danger/25 px-0.5 font-medium text-text ring-1 ring-danger/60">
+                {s.text}
+              </mark>
+            ) : (
+              s.text
+            ),
+          )
+        ) : split ? (
           <>
             {split.before}
             <mark data-culprit="1" className="rounded-xs bg-danger/25 px-0.5 font-medium text-text ring-1 ring-danger/60">
@@ -163,7 +193,7 @@ function Culprit({ email, quote }: { email: Email; quote: string | null }) {
           email.body
         )}
       </p>
-      {!split && quote && (
+      {!split && !termHit && quote && (
         <p className="mt-3 text-sm text-text">
           <span className="text-dim">Judge&apos;s quote: </span>
           {quote}
@@ -173,7 +203,7 @@ function Culprit({ email, quote }: { email: Email; quote: string | null }) {
   );
 }
 
-export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry }: Props) {
+export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry, rules = [] }: Props) {
   if (!verdict) {
     if (phase === "done")
       return (
@@ -188,6 +218,9 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
 
   const block = verdict.verdict === "BLOCK";
   const ruleId = verdict.source === "rule" ? (verdict.rule_id ?? null) : null;
+  const rule = ruleId !== null ? rules.find((r) => r.id === ruleId) : undefined;
+  const ruleTerms = rule?.match_terms ?? [];
+  const hardRule = verdict.per_action.some((p) => p.hard_rule);
   const ruleHeadline = `Auto-blocked by rule${ruleId !== null ? ` #${ruleId}` : ""} before the assistant ran`;
   // The backend's rule explanation may open with the same sentence as the headline.
   const explanation =
@@ -225,6 +258,17 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
               {ruleHeadline}
             </p>
           )}
+          {ruleTerms.length > 0 && (
+            <p className="mt-2 text-lg">
+              <span className="text-dim">Matched because the email contains </span>
+              {ruleTerms.map((t, i) => (
+                <span key={t}>
+                  {i > 0 && <span className="text-dim">, </span>}
+                  <span className="font-mono text-text">“{t}”</span>
+                </span>
+              ))}
+            </p>
+          )}
           {explanation && <Markdown text={explanation} className="mt-3 text-xl leading-snug" />}
 
           {verdict.per_action.length > 0 && (
@@ -259,14 +303,15 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
               label="introduces a new goal or recipient"
               value={verdict.introduces_new_goal_or_recipient}
             />
-            <li className="text-dim">
-              {verdict.source === "fast_path"
-                ? "Fast path: decided by code, no LLM call"
-                : verdict.source === "rule"
-                  ? "Patcher rule: no agents ran, no tokens spent"
-                  : "Diff by code, verdict by LLM"}
-            </li>
           </ul>
+
+          <div className="mt-5 border-t border-line pt-4">
+            <p className="font-mono text-xs font-semibold uppercase tracking-wider text-dim">
+              How this was decided
+            </p>
+            <p className="mt-1.5 text-base leading-snug">{howDecided(verdict)}</p>
+            {hardRule && <p className="mt-1.5 text-base leading-snug text-danger">{HARD_RULE_TEXT}</p>}
+          </div>
 
           {run.error && (
             <p role="alert" className="mt-4 flex items-start gap-2 text-sm text-dim">
@@ -279,7 +324,7 @@ export function JudgeCard({ phase, diff, verdict, emails, run, onRetry, canRetry
         </div>
 
         {culprit ? (
-          <Culprit email={culprit} quote={verdict.culprit_quote} />
+          <Culprit email={culprit} quote={verdict.culprit_quote} terms={ruleTerms} />
         ) : verdict.culprit_quote ? (
           <div className="border-l-2 border-danger/50 pl-4 text-sm">
             <p className="text-[11px] font-semibold font-mono uppercase tracking-wider text-danger">

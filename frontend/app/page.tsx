@@ -177,6 +177,18 @@ export default function Home() {
   const phase = phaseOf(run);
   const canRun = scenario !== null && request.trim() !== "";
   const skippedByRule = autoBlockedBy(run);
+  // What each lane can read, from the inbox this run used (or will use).
+  const inbox = run.status === "idle" ? emails : run.sentEmails;
+  const external = inbox.filter((e) => !e.trusted).length;
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const workerSub =
+    inbox.length === 1 ? "Reads the one email" : inbox.length === 2 ? "Reads both emails" : `Reads all ${plural(inbox.length, "email")}`;
+  const shadowSub =
+    external === 0
+      ? "No external emails to withhold"
+      : external === 1
+        ? "Can't read the external email"
+        : `Can't read the ${plural(external, "external email")}`;
 
   return (
     <>
@@ -242,6 +254,7 @@ export default function Home() {
               startedAt={run.startedAt}
               doneAt={run.laneDoneAt.worker}
               skippedByRule={skippedByRule}
+              sub={workerSub}
             />
             <Lane
               lane="shadow"
@@ -253,6 +266,7 @@ export default function Home() {
               doneAt={run.laneDoneAt.shadow}
               skippedByRule={skippedByRule}
               missing={run.diff?.worker_only}
+              sub={shadowSub}
             />
           </div>
 
@@ -265,6 +279,7 @@ export default function Home() {
               run={run}
               onRetry={handleRun}
               canRetry={canRun}
+              rules={rules}
             />
           </div>
 

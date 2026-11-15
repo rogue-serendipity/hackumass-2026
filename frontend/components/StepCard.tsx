@@ -75,6 +75,21 @@ function frame(status: CardStatus | undefined) {
   }
 }
 
+/** What the Shadow got instead of an external email's body: shown, not just said. */
+function Redacted() {
+  return (
+    <div className="mt-1.5">
+      <div aria-hidden className="flex flex-col gap-1">
+        <span className="h-2.5 w-11/12 rounded-xs bg-dim/35" />
+        <span className="h-2.5 w-8/12 rounded-xs bg-dim/35" />
+      </div>
+      <p className="mt-1.5 font-mono text-xs text-dim">
+        Body withheld: external sender. The Shadow sees only who sent it, the subject and the time.
+      </p>
+    </div>
+  );
+}
+
 export function StepCard({ call, result, status }: Props) {
   const { tool, args, sensitive } = call.data;
 
@@ -86,12 +101,10 @@ export function StepCard({ call, result, status }: Props) {
           <span className="text-text">{tool}</span>
           <span className="text-dim">({argsInline(args)})</span>
         </p>
-        {p && p.text && (
-          <p
-            className={`mt-1 line-clamp-2 text-sm text-dim ${p.withheld ? "italic" : ""}`}
-          >
-            {p.text}
-          </p>
+        {p && p.withheld ? (
+          <Redacted />
+        ) : (
+          p && p.text && <p className="mt-1 line-clamp-2 text-sm text-dim">{p.text}</p>
         )}
       </li>
     );

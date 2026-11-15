@@ -148,3 +148,28 @@ describe("splitAroundQuote", () => {
     expect(splitAroundQuote("abc", "")).toBeNull();
   });
 });
+
+import { splitByTerms } from "./highlight";
+
+describe("splitByTerms", () => {
+  it("marks every case-insensitive match", () => {
+    expect(splitByTerms("Share the Tax Return with leasing@x.com. tax return!", ["tax return", "leasing@x.com"])).toEqual([
+      { text: "Share the ", match: false },
+      { text: "Tax Return", match: true },
+      { text: " with ", match: false },
+      { text: "leasing@x.com", match: true },
+      { text: ". ", match: false },
+      { text: "tax return", match: true },
+      { text: "!", match: false },
+    ]);
+  });
+  it("prefers the longer of two overlapping terms and escapes regex characters", () => {
+    expect(splitByTerms("pay $45 (now)", ["pay", "pay $45 (now)"])).toEqual([
+      { text: "pay $45 (now)", match: true },
+    ]);
+  });
+  it("returns the body untouched with no terms", () => {
+    expect(splitByTerms("hello", [])).toEqual([{ text: "hello", match: false }]);
+    expect(splitByTerms("hello", ["  "])).toEqual([{ text: "hello", match: false }]);
+  });
+});

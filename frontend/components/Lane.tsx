@@ -19,6 +19,8 @@ interface Props {
   skippedByRule?: number | null;
   /** Actions the other lane took that this one never did; shown as gaps. */
   missing?: ProposedAction[];
+  /** Says what this lane can read, e.g. "Can't read 3 external emails". */
+  sub?: string;
 }
 
 /** Where an action was aimed, for the gap card's one-line description. */
@@ -103,6 +105,7 @@ export function Lane({
   doneAt,
   skippedByRule = null,
   missing = [],
+  sub,
 }: Props) {
   const copy = COPY[lane];
   const cards = toCards(steps);
@@ -146,7 +149,7 @@ export function Lane({
       <header className="flex items-center gap-3 border-b border-line px-4 py-3">
         <span className={`h-2.5 w-2.5 rounded-full ${copy.dot} ${working ? "motion-safe:animate-pulse" : ""}`} />
         <h2 className={`text-lg font-semibold ${copy.tone}`}>{copy.title}</h2>
-        <p className="text-sm text-dim">{copy.sub}</p>
+        <p className="text-sm text-dim">{sub ?? copy.sub}</p>
         <span className="ml-auto font-mono text-sm tabular-nums text-dim">{status}</span>
       </header>
       <ol
