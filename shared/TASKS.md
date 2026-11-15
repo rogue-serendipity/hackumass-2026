@@ -28,6 +28,6 @@ Only the coordinator (see `AGENTS.md` §5) assigns or reassigns tasks, and it up
 | H3 | Hermes policy + Shadow + Judge, with tests. Suggested: @rogue-serendipity | @rogue-serendipity | in progress | `hermes/guard/policy.py`, `hermes/guard/shadow.py`, `hermes/guard/judge.py`, `hermes/guard/tests/` | 2026-11-15 03:10 | H2 |
 | H4 | Hermes hook script + `install.sh`. Suggested: @adarshvipat | @adarshvipat | done | `hermes/hooks/`, `hermes/install.sh` | 2026-11-15 03:10 | H0, H1 |
 | H5 | HUD page: pill + expanded block card, mock event stream for dev. Suggested: @adarshvipat | @adarshvipat | done | `frontend/app/hud/`, `frontend/components/hud/` | 2026-11-15 03:10 | H1 |
-| H6 | Electron always-on-top HUD shell (cut first if short on time). Suggested: @adarshvipat | @adarshvipat | assigned | `hermes/hud/` | 2026-11-15 03:10 | H5 |
+| H6 | Electron always-on-top HUD shell (cut first if short on time). Suggested: @adarshvipat | @adarshvipat | done | `hermes/hud/` | 2026-11-15 03:10 | H5 |
 | H7 | Hermes demo world: weather-cli clean + poisoned README, fake `.env`, `setup_demo.sh`; Hermes takes the bait ≥2/3. Suggested: @rogue-serendipity | @rogue-serendipity | assigned | `hermes/demo/` | 2026-11-15 03:10 | H3, H4 |
 | H8 | Hermes end-to-end rehearsal, README section, video beat. Suggested: @adarshvipat | @adarshvipat | assigned | `README.md` (claim), `docs/` | 2026-11-15 03:10 | all H |
