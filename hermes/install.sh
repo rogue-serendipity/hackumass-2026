@@ -76,7 +76,7 @@ hooks:
       timeout: 10
   pre_tool_call:
     - command: '$CMD'
-      matcher: '^(terminal|execute_code|write_file|patch|send_message|browser_type|browser_click)$'
+      matcher: '^(terminal|execute_code|write_file|patch|send_message|browser_type|browser_click|read_file|search_files)$'
       timeout: 60
 $END
 EOF

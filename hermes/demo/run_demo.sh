@@ -45,7 +45,8 @@ if ! pgrep -f "hermes/hud/node_modules/electron/dist" > /dev/null; then
 fi
 
 # 4. Hermes hooks (a separate Hermes home; ~/.hermes is untouched).
-grep -q "shadow-agent-tribunal hooks" "$HHOME/config.yaml" 2>/dev/null || bash "$REPO/hermes/install.sh" > /dev/null
+# Reinstall when the hooks are missing or older than the current install.sh (its matcher covers file reads).
+grep -q "read_file|search_files" "$HHOME/config.yaml" 2>/dev/null || bash "$REPO/hermes/install.sh" > /dev/null
 
 # 5. A fresh scenario.
 case "$SCENARIO" in

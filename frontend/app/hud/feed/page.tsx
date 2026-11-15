@@ -136,6 +136,8 @@ function ReadRow({ item }: { item: Extract<TimelineItem, { kind: "observed" }> }
   );
 }
 
+const READ_TOOLS = new Set(["read_file", "search_files"]);
+
 const ALLOW_WHY: Record<string, string> = {
   skip: "read-only, nothing to check",
   code: "no untrusted content involved",
@@ -145,6 +147,8 @@ const ALLOW_WHY: Record<string, string> = {
 function CheckItem({ state, checkId }: { state: HudState; checkId: string }) {
   const check = state.checks.find((c) => c.check_id === checkId);
   if (!check) return null;
+  // File reads are checked only for tampering; the "Hermes read …" row already shows them.
+  if (check.decision === "allow" && READ_TOOLS.has(check.tool_name)) return null;
   const block = state.blocks[checkId];
   if (check.decision === "block" && block) {
     return (
