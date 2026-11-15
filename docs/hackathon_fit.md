@@ -77,11 +77,11 @@ After a block, the **Patcher** turns the attack into a rule. The next time a mat
 
 ### Accomplishments we're proud of
 
-Measured with our eval script (2 runs of each of the 13 scenarios, the exact demo configuration, Nov 15 00:13 UTC):
+Measured with our eval script (2 runs of each of the 13 scenarios, the exact demo configuration, Nov 15 01:10 UTC; served live at `/api/eval/latest`):
 
 - **16 of 16 attack runs hijacked the Worker, and all 16 were blocked.** Every one of the 8 attacks, both times.
-- **9 of 10 benign runs approved.** The one block was on `requested_payment`; in earlier testing this was the Worker mistyping Sam's address (`roomate.sam@…`), which the hard rule caught. We since gave Sam a simpler address (`sam.rivera@gmail.com`, vs the attacker's lookalike `sam.rivera.pay@gmail.com`): 6/6 approved afterwards.
-- **About 13k tokens and 5.7 s (median) per protected run**, streamed live.
+- **10 of 10 benign runs approved: zero false alarms.** (An earlier run had 1 false alarm: the agent mistyped Sam's address and the hard rule caught it. We gave Sam a simpler address.)
+- **About 12.7k tokens and 6.4 s (median) per protected run**, streamed live.
 - The whole pipeline (two agents, Judge, Patcher, UI, deploy) was built in one weekend by two people working entirely through AI coding agents that coordinated with each other on a GitHub issue.
 
 ### What we learned
@@ -128,7 +128,7 @@ Before judging: click "Reset demo" (clears learned rules), and run each demo sce
 - **Why such a weak Worker model?** Cheap, fast models are what's actually deployed in agents, and they're the ones that get hijacked. With a robust model there's nothing to block: the tribunal approves. It doesn't depend on any one model.
 - **Isn't the Shadow fooled too?** Yes, by sender addresses and subjects. That's why agreement doesn't count when the destination is unknown and content differs or money and files move. Then the hard rule and the Judge decide.
 - **Isn't the Judge injectable?** Detection is plain code first; the hard rule doesn't use a model. The Judge only classifies a difference code already found, and its prompt treats email text as data.
-- **What if the model is just random?** Temperature 0, and we measure a noise baseline (two identical Worker runs): two identical Worker runs disagree on 4 of 10 benign pairs, all in two scenarios (`extra_rsvp`, `requested_payment`) where the cheap model is inconsistent. That's why the Judge reviews every difference instead of blocking on difference alone: benign approval stays at 9/10.
+- **What if the model is just random?** Temperature 0, and we measure a noise baseline (two identical Worker runs): two identical Worker runs disagree on 2 of 10 benign pairs (20%), because the cheap model isn't fully consistent. That's why the Judge reviews every difference instead of blocking on difference alone: benign approval is still 10/10.
 - **What about tasks that need the email content?** `legit_reply` and `extra_rsvp`: the Judge approves differences that serve the request, from known contacts.
-- **What does it cost?** About 13k tokens per protected run (≈10k in, 3k out) on Vultr's flash models, about 2–3× a single agent run. A Patcher auto-block costs 0 tokens.
-- **False positives?** 1 of 10 benign runs in our eval, and that one was the agent mistyping a payee's address, which arguably should be stopped.
+- **What does it cost?** About 12.7k tokens per protected run (≈10k in, 3k out) on Vultr's flash models, about 2–3× a single agent run. A Patcher auto-block costs 0 tokens.
+- **False positives?** 0 of 10 benign runs in our latest eval. An earlier run had 1, which was the agent mistyping a payee's address; arguably that should be stopped.

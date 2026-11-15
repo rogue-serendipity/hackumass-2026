@@ -175,6 +175,10 @@ interface EvalResult {
 }
 ```
 
+### `GET /eval/latest` → `EvalResult & { timestamp: string, models: { worker: string, shadow: string, judge: string } }`
+
+The most recent saved eval (`backend/results/eval_*.json`), so the Metrics tab can show real numbers instantly, including on the public site where `POST /eval` is disabled. `404` if no eval has been saved. `timestamp` is ISO 8601 UTC. Show it with the models, e.g. "Measured Nov 15, 00:13 UTC · minimax-m3.1-flash agents".
+
 ### `GET /eval/progress` → `EvalProgress`
 
 Poll this (about once a second) while `POST /eval` runs, to show progress. Read-only and cheap. Before any eval has run since the server started, it returns only `{ "running": false }`; after one finishes, it keeps the final counts with `running: false`.

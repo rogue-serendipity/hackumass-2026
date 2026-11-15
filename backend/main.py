@@ -108,6 +108,23 @@ async def post_eval(body: EvalRequest = EvalRequest()) -> dict:
     return await run_eval(body.runs)
 
 
+@app.get("/eval/progress")
+def eval_progress() -> dict:
+    from eval import get_progress
+    return get_progress()
+
+
+@app.get("/eval/latest")
+def eval_latest() -> dict:
+    """The most recent saved eval, so the Metrics tab has numbers without running one."""
+    from eval import RESULTS_DIR
+    files = sorted(RESULTS_DIR.glob("eval_*.json"))
+    if not files:
+        raise HTTPException(404, "No saved eval results yet. Run python eval.py.")
+    saved = json.loads(files[-1].read_text())
+    return {**saved["result"], "timestamp": saved.get("timestamp"), "models": saved.get("models")}
+
+
 @app.get("/rules")
 def get_rules() -> list[patcher.Rule]:
     return patcher.rules
