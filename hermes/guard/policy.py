@@ -79,7 +79,7 @@ def summary(tool_name: str, tool_input) -> str:
     text = " ".join(text_of(tool_input).split())
     if isinstance(tool_input, dict) and tool_name in ("write_file", "patch", "read_file"):
         text = str(tool_input.get("path") or tool_input.get("file_path") or text)
-    return f"{tool_name}: {text[:140]}" if text else tool_name
+    return f"{tool_name}: {text[:400]}" if text else tool_name  # long enough to show a chained command in full
 
 
 def source_of(tool_name: str, tool_input, cwd: str) -> str:
