@@ -26,14 +26,14 @@ wait_for() { for _ in $(seq 1 60); do up "$1" && return 0; sleep 1; done; echo "
 # 1. The Tribunal guard.
 if ! up "$GUARD/hermes/state"; then
   echo "Starting the Tribunal guard (log: $LOGS/guard.log)…"
-  (cd "$REPO/hermes/guard" && nohup ../../backend/.venv/bin/uvicorn server:app --port 8100 > "$LOGS/guard.log" 2>&1 &)
+  (cd "$REPO/hermes/guard" && nohup ../../backend/.venv/bin/uvicorn server:app --port 8100 < /dev/null > "$LOGS/guard.log" 2>&1 &)
   wait_for "$GUARD/hermes/state"
 fi
 
 # 2. The frontend (the live feed and the menu bar dropdown).
 if ! up "http://localhost:3000/hud"; then
   echo "Starting the frontend (log: $LOGS/frontend.log)…"
-  (cd "$REPO/frontend" && nohup npm run dev > "$LOGS/frontend.log" 2>&1 &)
+  (cd "$REPO/frontend" && nohup npm run dev < /dev/null > "$LOGS/frontend.log" 2>&1 &)
   wait_for "http://localhost:3000/hud"
 fi
 
@@ -41,7 +41,7 @@ fi
 if ! pgrep -f "hermes/hud/node_modules/electron/dist" > /dev/null; then
   [ -d "$REPO/hermes/hud/node_modules/electron/dist/Electron.app/Contents/Frameworks" ] || bash "$REPO/hermes/hud/setup.sh"
   echo "Starting the menu bar item…"
-  (cd "$REPO/hermes/hud" && nohup npm start > "$LOGS/hud.log" 2>&1 &)
+  (cd "$REPO/hermes/hud" && nohup npm start < /dev/null > "$LOGS/hud.log" 2>&1 &)
 fi
 
 # 4. Hermes hooks (a separate Hermes home; ~/.hermes is untouched).
@@ -77,3 +77,4 @@ on run argv
 end run
 OSA
 echo "Hermes is running in a new Terminal window. Watch the menu bar and $FEED"
+exit 0
