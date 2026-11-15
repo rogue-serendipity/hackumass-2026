@@ -63,10 +63,22 @@ export function HudBlockPopup({
         {action}
       </p>
 
-      {culprit?.quote && (
-        <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-dim" title={culprit.quote}>
-          From <span className="text-text">{sourceLabel(culprit.source)}</span>: “{culprit.quote}”
+      {blocked.reason && (
+        <p className="mt-2 line-clamp-2 text-xs leading-snug" title={blocked.reason}>
+          <span className="font-medium text-danger">Why: </span>
+          {blocked.reason}
         </p>
+      )}
+
+      {culprit?.quote && (
+        <div className="mt-2 border-l-2 border-danger pl-2">
+          <p className="text-[11px] text-dim">
+            Exact text in <span className="font-mono text-text">{sourceLabel(culprit.source)}</span>
+          </p>
+          <p className="line-clamp-3 text-xs leading-snug" title={culprit.quote}>
+            <mark className="rounded-xs bg-danger/25 px-0.5 text-text">{culprit.quote}</mark>
+          </p>
+        </div>
       )}
 
       {blocked.awaitingUser ? (
