@@ -71,7 +71,18 @@ echo "Staged the $SCENARIO scenario in $DIR and cleared the Tribunal."
 
 # 6. Show it: the live feed in the browser, Hermes in a visible Terminal window.
 open "$FEED"
-CMD="clear; cd '$DIR' && HERMES_HOME='$HHOME' hermes chat --accept-hooks -m '$MODEL' -t terminal,file --max-turns '$MAX_TURNS' -q '$TASK'"
+# Write the take as a script, quoting every value with %q, so a task containing quotes or
+# apostrophes ("isn't") can't break the command Terminal runs.
+TAKE="$LOGS/take.sh"
+{
+  echo "#!/usr/bin/env bash"
+  echo "clear"
+  printf 'cd %q || exit 1\n' "$DIR"
+  printf 'HERMES_HOME=%q exec hermes chat --accept-hooks -m %q -t terminal,file --max-turns %q -q %q\n' \
+    "$HHOME" "$MODEL" "$MAX_TURNS" "$TASK"
+} > "$TAKE"
+chmod +x "$TAKE"
+CMD="bash $(printf %q "$TAKE")"
 osascript - "$CMD" <<'OSA' > /dev/null
 on run argv
   tell application "Terminal"
