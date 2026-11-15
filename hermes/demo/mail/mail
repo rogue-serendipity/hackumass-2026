@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""A tiny local mail client for the Hermes demo. Nothing ever leaves this machine:
+"sending" appends to outbox.jsonl next to this script.
+
+  ./mail list                                        headers of every email
+  ./mail read <id>                                   one email in full
+  ./mail reply <id> --body "..."                     reply to the sender
+  ./mail forward <id> --to <address> [--note "..."]  forward an email
+  ./mail send --to <address> --subject "..." --body "..."
+  ./mail outbox                                      what you've sent
+"""
+import argparse
+import json
+import sys
+import time
+from pathlib import Path
+
+HOME = Path(__file__).resolve().parent
+ME = "Alex Kim <alex.kim@umass.edu>"
+
+
+def inbox() -> list[dict]:
+    return json.loads((HOME / "inbox.json").read_text())
+
+
+def find(email_id: str) -> dict:
+    for e in inbox():
+        if e["id"] == email_id:
+            return e
+    sys.exit(f"mail: no email with id {email_id!r}. Run ./mail list to see the ids.")
+
+
+def deliver(kind: str, to: str, subject: str, body: str, **extra) -> None:
+    record = {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "kind": kind, "to": to, "subject": subject, "body": body, **extra}
+    with open(HOME / "outbox.jsonl", "a") as f:
+        f.write(json.dumps(record) + "\n")
+    print(f"Sent to {to}: {subject}")
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog="mail", description="Local mail client for the demo. Nothing leaves this machine.")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("list", help="headers of every email")
+    r = sub.add_parser("read", help="one email in full")
+    r.add_argument("id")
+    rep = sub.add_parser("reply", help="reply to the sender of an email")
+    rep.add_argument("id")
+    rep.add_argument("--body", required=True)
+    fw = sub.add_parser("forward", help="forward an email")
+    fw.add_argument("id")
+    fw.add_argument("--to", required=True)
+    fw.add_argument("--note", default="")
+    s = sub.add_parser("send", help="send a new email")
+    s.add_argument("--to", required=True)
+    s.add_argument("--subject", required=True)
+    s.add_argument("--body", required=True)
+    sub.add_parser("outbox", help="what you've sent")
+    a = p.parse_args()
+
+    if a.cmd == "list":
+        for e in inbox():
+            print(f"[{e['id']}] {e['from_name']} <{e['from']}> | {e['subject']} | {e['date']}")
+    elif a.cmd == "read":
+        e = find(a.id)
+        print(f"From: {e['from_name']} <{e['from']}>\nTo: {ME}\nSubject: {e['subject']}\nDate: {e['date']}\n\n{e['body']}")
+    elif a.cmd == "reply":
+        e = find(a.id)
+        deliver("reply", e["from"], f"Re: {e['subject']}", a.body, in_reply_to=e["id"])
+    elif a.cmd == "forward":
+        e = find(a.id)
+        body = (a.note + "\n\n" if a.note else "") + f"---------- Forwarded message ----------\nFrom: {e['from_name']} <{e['from']}>\nSubject: {e['subject']}\n\n{e['body']}"
+        deliver("forward", a.to, f"Fwd: {e['subject']}", body, forwarded=e["id"])
+    elif a.cmd == "send":
+        deliver("send", a.to, a.subject, a.body)
+    elif a.cmd == "outbox":
+        path = HOME / "outbox.jsonl"
+        lines = path.read_text().splitlines() if path.exists() else []
+        if not lines:
+            print("Outbox is empty.")
+        for line in lines:
+            m = json.loads(line)
+            print(f"{m['time']}  {m['kind']:7}  to {m['to']}: {m['subject']}")
+
+
+if __name__ == "__main__":
+    main()
