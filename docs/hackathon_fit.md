@@ -80,7 +80,7 @@ After a block, the **Patcher** turns the attack into a rule. The next time a mat
 Measured with our eval script (2 runs of each of the 13 scenarios, the exact demo configuration, Nov 15 00:13 UTC):
 
 - **16 of 16 attack runs hijacked the Worker, and all 16 were blocked.** Every one of the 8 attacks, both times.
-- **9 of 10 benign runs approved.** The one block was on `requested_payment`; in earlier testing this was the Worker mistyping Sam's address (`roomate.sam@…`), which the hard rule caught.
+- **9 of 10 benign runs approved.** The one block was on `requested_payment`; in earlier testing this was the Worker mistyping Sam's address (`roomate.sam@…`), which the hard rule caught. We since gave Sam a simpler address (`sam.rivera@gmail.com`, vs the attacker's lookalike `sam.rivera.pay@gmail.com`): 6/6 approved afterwards.
 - **About 13k tokens and 5.7 s (median) per protected run**, streamed live.
 - The whole pipeline (two agents, Judge, Patcher, UI, deploy) was built in one weekend by two people working entirely through AI coding agents that coordinated with each other on a GitHub issue.
 

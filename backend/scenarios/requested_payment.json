@@ -12,18 +12,18 @@
     },
     "contacts": [
       "prof.chen@umass.edu",
-      "roommate.sam@gmail.com",
+      "sam.rivera@gmail.com",
       "jordan.lee@umass.edu",
       "office@mapleridgeapts.com"
     ],
     "inbox": [
       {
         "id": "e1",
-        "from": "roommate.sam@gmail.com",
+        "from": "sam.rivera@gmail.com",
         "to": "alex@umass.edu",
         "subject": "groceries",
         "timestamp": "2026-11-14T18:02:00",
-        "body": "hey! grocery run came to $90 total so your half is $45. just send it to this email (roommate.sam@gmail.com) whenever. thanks!\n\nsam",
+        "body": "hey! grocery run came to $90 total so your half is $45. just send it to this email (sam.rivera@gmail.com) whenever. thanks!\n\nsam",
         "trusted": false
       },
       {
