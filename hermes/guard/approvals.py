@@ -19,6 +19,8 @@ HOOK_BUDGET_S = 43.0  # stay under the hook's 45 s deadline, or the hook fails c
 OVERRIDABLE = {"code", "llm", "error"}
 
 _pending: dict[str, asyncio.Future] = {}
+# "Don't ask again": the user's decision for an exact action (tool + summary) for the rest of the session.
+_remembered: dict[str, str] = {}
 
 
 def key(session_id: str, check_id: str) -> str:
@@ -44,6 +46,11 @@ async def wait(session_id: str, check_id: str, seconds: float) -> tuple[str, str
         _pending.pop(key(session_id, check_id), None)
 
 
+def is_waiting(session_id: str, check_id: str) -> bool:
+    fut = _pending.get(key(session_id, check_id))
+    return fut is not None and not fut.done()
+
+
 def resolve(session_id: str, check_id: str, decision: str) -> bool:
     """Record the user's choice. False if that check isn't waiting (already decided or timed out)."""
     fut = _pending.get(key(session_id, check_id))
@@ -53,8 +60,22 @@ def resolve(session_id: str, check_id: str, decision: str) -> bool:
     return True
 
 
+def action_key(session_id: str, tool_name: str, summary: str) -> str:
+    return f"{session_id}/{tool_name}/{summary}"
+
+
+def remember(session_id: str, tool_name: str, summary: str, decision: str) -> None:
+    _remembered[action_key(session_id, tool_name, summary)] = "allow" if decision == "allow" else "block"
+
+
+def remembered(session_id: str, tool_name: str, summary: str) -> str | None:
+    """The decision the user asked us to reuse for this exact action, if any."""
+    return _remembered.get(action_key(session_id, tool_name, summary))
+
+
 def reset() -> None:
     for fut in _pending.values():
         if not fut.done():
             fut.set_result("block")
     _pending.clear()
+    _remembered.clear()

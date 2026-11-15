@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CheckCircle, ShieldWarning, X } from "@phosphor-icons/react";
 import type { BlockedInfo } from "@/lib/hud";
 import { sourceLabel } from "@/lib/hud";
@@ -13,7 +14,7 @@ export function HudBlockCard({
 }: {
   blocked: BlockedInfo;
   onDismiss?: () => void;
-  onDecide?: (decision: "allow" | "block") => void;
+  onDecide?: (decision: "allow" | "block", remember: boolean) => void;
 }) {
   const { culprit } = blocked;
   const allowed = blocked.userDecision?.decision === "allow";
@@ -32,7 +33,9 @@ export function HudBlockCard({
         )}
         <h1 className={`flex-1 font-semibold ${allowed ? "text-ok" : "text-danger"}`}>
           {allowed
-            ? "You allowed this once"
+            ? blocked.userDecision?.remember
+              ? "You allowed this (don't ask again)"
+              : "You allowed this once"
             : blocked.awaitingUser
               ? "Held by the Shadow Agent Tribunal"
               : "Blocked by the Shadow Agent Tribunal"}
@@ -91,7 +94,12 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 function outcome(b: BlockedInfo): string {
+  if (b.remembered) return "You chose to always block this action, so it was blocked without asking.";
+  if (b.userDecision?.decision === "allow" && b.userDecision.remember)
+    return "You allowed it, so Hermes ran it. This exact action won't be held again this session; anything else still will.";
   if (b.userDecision?.decision === "allow") return "You chose Allow once, so Hermes ran it. The next suspicious action will be held again.";
+  if (b.userDecision?.by === "user" && b.userDecision.remember)
+    return "You chose Block, and this exact action will be blocked without asking for the rest of the session.";
   if (b.userDecision?.by === "user") return "You chose Block. Hermes was stopped and told not to retry.";
   if (b.userDecision?.by === "timeout") return "No answer in time, so it stayed blocked. Hermes was told not to retry.";
   if (b.source === "error") return "The Tribunal couldn't finish its check, so the action was held to be safe.";
@@ -100,8 +108,15 @@ function outcome(b: BlockedInfo): string {
 }
 
 /** Hold-and-ask (H12): Block is the default and what happens if nobody answers. */
-function Decide({ decideBy, onDecide }: { decideBy: number | null; onDecide: (d: "allow" | "block") => void }) {
+function Decide({
+  decideBy,
+  onDecide,
+}: {
+  decideBy: number | null;
+  onDecide: (d: "allow" | "block", remember: boolean) => void;
+}) {
   const now = useNow(decideBy !== null, 250);
+  const [remember, setRemember] = useState(false);
   const left = decideBy !== null && now > 0 ? Math.max(0, Math.ceil((decideBy - now) / 1000)) : null;
   return (
     <div className="mt-3 border-t border-line pt-3">
@@ -109,18 +124,27 @@ function Decide({ decideBy, onDecide }: { decideBy: number | null; onDecide: (d:
         Hermes is paused. Did <span className="text-text">you</span> want this?
         {left !== null && <span className="ml-1 font-mono">Blocking in {left}s.</span>}
       </p>
+      <label className="mb-3 flex w-fit cursor-pointer items-center gap-2 text-sm text-dim select-none">
+        <input
+          type="checkbox"
+          checked={remember}
+          onChange={(e) => setRemember(e.target.checked)}
+          className="size-4 accent-worker"
+        />
+        Don&apos;t ask again for this action
+      </label>
       <div className="flex gap-2">
         <button
           type="button"
           autoFocus
-          onClick={() => onDecide("block")}
+          onClick={() => onDecide("block", remember)}
           className="rounded-xs bg-danger px-4 py-1.5 text-sm font-semibold text-ink hover:bg-danger/90"
         >
           Block
         </button>
         <button
           type="button"
-          onClick={() => onDecide("allow")}
+          onClick={() => onDecide("allow", remember)}
           className="rounded-xs border border-line px-4 py-1.5 text-sm text-dim hover:bg-raised hover:text-text"
         >
           Allow once

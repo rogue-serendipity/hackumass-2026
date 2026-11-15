@@ -140,8 +140,10 @@ When the guard would block, it doesn't answer the hook right away. It emits `blo
 #### `POST /hermes/decide` → `{ "ok": true }`
 
 ```json
-{ "session_id": "…", "check_id": "c3", "decision": "allow" | "block" }
+{ "session_id": "…", "check_id": "c3", "decision": "allow" | "block", "remember": false }
 ```
+
+`remember: true` is the card's "Don't ask again for this action" box. For the rest of the session, the same action (same tool and summary) gets that decision without holding. An allow is emitted as `allowed` with `source: "user", remembered: true`. A block is emitted as `blocked` with `awaiting_user: false, remembered: true`, and its reason starts with "You chose to always block this action." `/hermes/reset` forgets these.
 
 Returns 409 if that check isn't waiting any more (already decided, timed out, or reset), and 422 for any other `decision`. The guard then emits `decided`. **On `allow`,** `/hermes/check` returns `{decision: "allow", source: "user", …}` and the action runs once. **On `block` or timeout,** the hook gets the original block. Allowing once never creates a rule; the next suspicious action is held again.
 

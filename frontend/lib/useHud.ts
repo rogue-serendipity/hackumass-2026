@@ -29,6 +29,7 @@ export async function decideCheck(
   sessionId: string | null,
   checkId: string,
   decision: "allow" | "block",
+  remember = false,
 ): Promise<void> {
   if (new URLSearchParams(window.location.search).has("mock")) {
     dispatch({ type: "event", event: "decided", data: { session_id: sessionId, check_id: checkId, decision, by: "user" } });
@@ -39,7 +40,7 @@ export async function decideCheck(
     const res = await fetch(`${GUARD}/hermes/decide`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, check_id: checkId, decision }),
+      body: JSON.stringify({ session_id: sessionId, check_id: checkId, decision, remember }),
     });
     ok = res.ok; // the guard's "decided" event updates the card
   } catch {

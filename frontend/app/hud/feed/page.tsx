@@ -87,7 +87,7 @@ export default function FeedPage() {
                 <CheckItem
                   state={state}
                   checkId={item.check_id}
-                  onDecide={(d) => decideCheck(dispatch, state.sessionId, item.check_id, d)}
+                  onDecide={(d, remember) => decideCheck(dispatch, state.sessionId, item.check_id, d, remember)}
                 />
               )}
             </li>
@@ -156,7 +156,7 @@ function CheckItem({
 }: {
   state: HudState;
   checkId: string;
-  onDecide: (d: "allow" | "block") => void;
+  onDecide: (d: "allow" | "block", remember: boolean) => void;
 }) {
   const check = state.checks.find((c) => c.check_id === checkId);
   if (!check) return null;
@@ -191,7 +191,11 @@ function CheckRowView({ check }: { check: CheckRow }) {
       )}
       <span className="min-w-0 flex-1 break-all font-mono text-sm">{check.summary}</span>
       <span className={`shrink-0 text-sm ${pending ? "text-worker" : "text-ok"}`}>
-        {pending ? "Checking with the Shadow…" : `Allowed · ${ALLOW_WHY[check.source ?? ""] ?? "allowed"}`}
+        {pending
+          ? "Checking with the Shadow…"
+          : check.remembered
+            ? "Allowed · you said don't ask again"
+            : `Allowed · ${ALLOW_WHY[check.source ?? ""] ?? "allowed"}`}
       </span>
     </div>
   );

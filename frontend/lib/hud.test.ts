@@ -142,7 +142,7 @@ describe("hold-and-ask", () => {
     expect(menuBarTitle(s)).toBe("Allow?");
     s = ev(s, "decided", { session_id: "s1", check_id: "c2", decision: "allow", by: "user" });
     expect(s.blocked?.awaitingUser).toBe(false);
-    expect(s.blocks.c2.userDecision).toEqual({ decision: "allow", by: "user" });
+    expect(s.blocks.c2.userDecision).toEqual({ decision: "allow", by: "user", remember: false });
     expect(s.checks.find((c) => c.check_id === "c2")).toMatchObject({ decision: "allow", source: "user" });
     expect(pillStatus(s).tone).toBe("ok");
     // A late timeout can't overturn the user's choice.

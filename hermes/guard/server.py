@@ -117,16 +117,33 @@ async def hermes_check(req: CheckRequest) -> dict:
         # H12 hold-and-ask: show the block, then wait briefly for the user's Block / Allow once.
         verdict = result.get("verdict") or {}
         window = approvals.window_for(started) if result["source"] in approvals.OVERRIDABLE else 0
+        prior = approvals.remembered(s.session_id, req.tool_name, check.summary) if window > 0 else None
+        if prior:
+            window = 0  # "Don't ask again": reuse the user's earlier decision for this exact action
+        if prior == "allow":
+            result = {"decision": "allow", "source": "user", "check_id": check.check_id,
+                      "summary": check.summary, "remembered": True}
+            check.decision, check.source = "allow", "user"
+            await emit("allowed", {"session_id": s.session_id, "check_id": check.check_id, "tool_name": req.tool_name,
+                                   "summary": check.summary, "source": "user", "remembered": True})
+            log.info("check %s %s -> allow (remembered)", check.check_id, check.summary)
+            if call_id:
+                s.results_by_call[call_id] = result
+            return result
+        if prior == "block":
+            result["reason"] = "You chose to always block this action. " + result["reason"]
+            result["remembered"] = True
         await emit("blocked", {"session_id": s.session_id, "check_id": check.check_id, "tool_name": req.tool_name,
                                "summary": check.summary, "shadow_summary": result.get("shadow_summary"),
                                "reason": result["reason"], "explanation": verdict.get("explanation") or result["reason"],
                                "culprit": result.get("culprit"), "source": result["source"],
-                               "awaiting_user": window > 0,
+                               "awaiting_user": window > 0, "remembered": bool(prior),
                                "decide_by": int((time.time() + window) * 1000) if window > 0 else None})
         if window > 0:
             choice, by = await approvals.wait(s.session_id, check.check_id, window)
+            remember = by == "user" and approvals.remembered(s.session_id, req.tool_name, check.summary) == choice
             await emit("decided", {"session_id": s.session_id, "check_id": check.check_id,
-                                   "decision": choice, "by": by})
+                                   "decision": choice, "by": by, "remember": remember})
             if choice == "allow":
                 result = {"decision": "allow", "source": "user", "check_id": check.check_id,
                           "summary": check.summary}
@@ -208,6 +225,7 @@ class Decision(BaseModel):
     session_id: str
     check_id: str
     decision: str  # "allow" | "block"
+    remember: bool = False  # "Don't ask again" for this exact action, for the rest of the session
 
 
 @app.post("/hermes/decide")
@@ -215,8 +233,13 @@ async def hermes_decide(d: Decision) -> dict:
     """The user's choice on a held block (H12). 409 if that check isn't waiting any more."""
     if d.decision not in ("allow", "block"):
         raise HTTPException(422, "decision must be 'allow' or 'block'")
-    if not approvals.resolve(d.session_id, d.check_id, d.decision):
+    s = store.sessions.get(d.session_id)
+    check = next((c for c in s.checks if c.check_id == d.check_id), None) if s else None
+    if not approvals.is_waiting(d.session_id, d.check_id):
         raise HTTPException(409, "That action isn't waiting for a decision any more.")
+    if d.remember and check:  # before resolving, so the waiting check sees it
+        approvals.remember(d.session_id, check.tool_name, check.summary, d.decision)
+    approvals.resolve(d.session_id, d.check_id, d.decision)
     return {"ok": True}
 
 

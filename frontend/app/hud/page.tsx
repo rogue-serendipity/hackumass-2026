@@ -63,7 +63,9 @@ export default function HudPage() {
         <HudBlockCard
           blocked={state.blocked}
           onDismiss={dismiss}
-          onDecide={(d) => state.blocked && decideCheck(dispatch, state.sessionId, state.blocked.check_id, d)}
+          onDecide={(d, remember) =>
+            state.blocked && decideCheck(dispatch, state.sessionId, state.blocked.check_id, d, remember)
+          }
         />
       ) : open || menubar ? (
         <HudActivity state={state} />

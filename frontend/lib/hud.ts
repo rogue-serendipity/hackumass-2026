@@ -21,7 +21,8 @@ export interface BlockedInfo {
   // Hold-and-ask (H12): the guard is waiting for the user's Block / Allow once until decideBy (epoch ms).
   awaitingUser: boolean;
   decideBy: number | null;
-  userDecision: { decision: "allow" | "block"; by: "user" | "timeout" } | null;
+  userDecision: { decision: "allow" | "block"; by: "user" | "timeout"; remember?: boolean } | null;
+  remembered: boolean; // blocked automatically because the user chose "Don't ask again" earlier
 }
 
 export interface CheckRow {
@@ -30,6 +31,7 @@ export interface CheckRow {
   summary: string;
   decision: "allow" | "block" | "pending";
   source?: string;
+  remembered?: boolean; // decided by an earlier "Don't ask again"
 }
 
 export interface HudState {
@@ -143,7 +145,7 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
               check_id: c.check_id, tool_name: c.tool_name, summary: c.summary, shadow_summary: null,
               reason: cleanReason(c.reason ?? ""), explanation: cleanReason(c.reason ?? ""),
               culprit: c.culprit ?? null, source: (c.source || "llm") as GuardSource,
-              awaitingUser: false, decideBy: null, userDecision: null,
+              awaitingUser: false, decideBy: null, userDecision: null, remembered: false,
             }]),
         ),
         // The snapshot doesn't keep the interleaving, so show reads first, then checks.
@@ -192,7 +194,7 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
             ...s,
             checks: upsertCheck(s.checks, {
               check_id: str(d.check_id), tool_name: str(d.tool_name), summary: str(d.summary),
-              decision: "allow", source: str(d.source),
+              decision: "allow", source: str(d.source), remembered: Boolean(d.remembered),
             }),
             timeline: withCheckInTimeline(s, str(d.check_id)),
           };
@@ -205,12 +207,14 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
             summary: str(d.summary),
             shadow_summary: typeof d.shadow_summary === "string" ? d.shadow_summary : null,
             reason: cleanReason(str(d.reason)),
-            explanation: cleanReason(str(d.explanation) || str(d.reason)),
+            // The footer already says "You chose to always block this action", so don't repeat it here.
+            explanation: cleanReason(str(d.explanation) || str(d.reason)).replace(/^You chose to always block this action\.\s*/, ""),
             culprit: (d.culprit as Culprit | null) ?? null,
             source: (str(d.source) || "llm") as GuardSource,
             awaitingUser: Boolean(d.awaiting_user),
             decideBy: typeof d.decide_by === "number" ? d.decide_by : null,
             userDecision: null,
+            remembered: Boolean(d.remembered),
           };
           return {
             ...s,
@@ -231,6 +235,7 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
           const userDecision = {
             decision: d.decision === "allow" ? "allow" : "block",
             by: d.by === "user" ? "user" : "timeout",
+            remember: Boolean(d.remember),
           } as const;
           const updated: BlockedInfo = { ...prev, awaitingUser: false, userDecision };
           return {

@@ -79,3 +79,24 @@ def test_silence_blocks(project, monkeypatch):  # noqa: F811
 def test_window_never_exceeds_the_hook_budget():
     assert approvals.window_for(time.monotonic() - approvals.HOOK_BUDGET_S) == 0
     assert approvals.window_for(time.monotonic()) <= approvals.APPROVAL_S
+
+
+def test_dont_ask_again_reuses_the_decision_for_the_same_action(held):
+    c, check_id, results, t = held
+    c.post("/hermes/decide", json={"session_id": "s1", "check_id": check_id, "decision": "allow", "remember": True})
+    t.join(5)
+    assert results[0]["decision"] == "allow"
+    again = c.post("/hermes/check", json={"session_id": "s1", "tool_name": "terminal", "cwd": results[0].get("cwd", ""),
+                                          "tool_input": {"command": CURL}}).json()
+    assert again["decision"] == "allow" and again.get("remembered") is True
+    assert not approvals._pending  # it didn't wait for the user again
+
+
+def test_dont_ask_again_block(held):
+    c, check_id, results, t = held
+    c.post("/hermes/decide", json={"session_id": "s1", "check_id": check_id, "decision": "block", "remember": True})
+    t.join(5)
+    again = c.post("/hermes/check", json={"session_id": "s1", "tool_name": "terminal",
+                                          "tool_input": {"command": CURL}}).json()
+    assert again["decision"] == "block" and again.get("remembered") is True
+    assert again["reason"].startswith("You chose to always block this action.")
