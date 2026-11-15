@@ -6,6 +6,7 @@ import type {
   EvalProgress,
   EvalResult,
   JudgeVerdict,
+  SavedEval,
   Rule,
   RunEvent,
   RunOverrides,
@@ -139,6 +140,15 @@ export function openRunStream(
   };
   next();
   return () => clearTimeout(timer);
+}
+
+export async function getLatestEval(): Promise<SavedEval> {
+  await sleep(150);
+  return {
+    ...MOCK_EVAL,
+    timestamp: "2026-11-15T01:10:03+00:00",
+    models: { worker: "mock-agent", shadow: "mock-agent", judge: "mock-judge" },
+  };
 }
 
 const MOCK_EVAL_MS = 9000;

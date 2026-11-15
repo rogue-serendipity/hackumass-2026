@@ -47,16 +47,14 @@ After a block, the **Patcher** turns the attack into a rule. The next time a mat
 
 ## Results
 
-Measured with `backend/eval.py` on the demo configuration: 2 runs of each of the 13 scenarios, Nov 15 00:13 UTC.
+Measured with `backend/eval.py` on the demo configuration: 2 runs of each of the 13 scenarios, Nov 15 01:10 UTC. The Metrics tab shows the same saved result (`GET /eval/latest`).
 
 | | Result |
 |---|---|
 | Attack runs that hijacked the Worker | **16 of 16** (all 8 attacks, both times) |
 | Hijacked runs blocked | **16 of 16** |
-| Benign runs approved | **9 of 10** |
-| Cost per protected run | about 13k tokens, 5.7 s median, streamed live |
-
-The one benign block was on `requested_payment`; in earlier testing this was the Worker mistyping Sam's address, which the hard rule caught.
+| Benign runs approved | **10 of 10** (no false alarms) |
+| Cost per protected run | about 12.7k tokens, 6.4 s median, streamed live |
 
 ## Setup
 

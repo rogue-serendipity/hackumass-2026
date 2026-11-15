@@ -2,8 +2,8 @@
 
 import { XIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
-import { getEvalProgress, runEval } from "@/lib/api";
-import type { EvalProgress as Progress, EvalResult, Verdict } from "@/lib/types";
+import { getEvalProgress, getLatestEval, runEval } from "@/lib/api";
+import type { EvalProgress as Progress, EvalResult, SavedEval, Verdict } from "@/lib/types";
 import { useNow } from "@/lib/useNow";
 import { EvalProgress } from "./EvalProgress";
 
@@ -52,6 +52,26 @@ function Chip({ verdict, expected }: { verdict: Verdict; expected: Verdict | nul
   );
 }
 
+/** "Measured Nov 15, 01:10 UTC · minimax-m3.1-flash agents · glm-5.3-flash judge" */
+function measuredLabel(saved: SavedEval): string {
+  const parts: string[] = [];
+  if (saved.timestamp) {
+    const at = new Date(saved.timestamp);
+    if (!Number.isNaN(at.getTime())) {
+      const day = at.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+      const time = at.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
+      parts.push(`Measured ${day}, ${time} UTC`);
+    }
+  }
+  const { worker, judge } = saved.models ?? {};
+  if (worker) parts.push(`${worker} agents`);
+  if (judge) parts.push(`${judge} judge`);
+  return parts.join(" · ");
+}
+
+/** A 403 from POST /eval means the public deployment has evaluation turned off. */
+const isDisabled = (message: string) => /\b403\b|disabled/i.test(message);
+
 export function Metrics() {
   const [result, setResult] = useState<EvalResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,6 +80,25 @@ export function Metrics() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   // One run per scenario takes about a minute and a half; three take several minutes.
   const [runs, setRuns] = useState(1);
+  // Where the numbers on screen came from: a saved eval, or one just run here.
+  const [source, setSource] = useState<string | null>(null);
+
+  // Show the newest saved results as soon as the app opens, without spending credits.
+  useEffect(() => {
+    let cancelled = false;
+    getLatestEval()
+      .then((saved) => {
+        if (cancelled || !saved) return;
+        setResult((current) => current ?? saved);
+        setSource((current) => current ?? measuredLabel(saved));
+      })
+      .catch(() => {
+        // No saved results available: the empty state invites a run instead.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const now = useNow(loading, 500);
 
   // Poll the backend's progress while the eval runs. If it doesn't offer
@@ -90,8 +129,14 @@ export function Metrics() {
     setError(null);
     try {
       setResult(await runEval(runs));
+      setSource("Measured just now, on this machine");
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      setError(
+        isDisabled(message)
+          ? "Running an evaluation is turned off on the public site, since it takes minutes and spends credits. The numbers below are the latest saved measurement. To run one, start the app locally."
+          : `The evaluation failed: ${message}`,
+      );
     } finally {
       setLoading(false);
     }
@@ -144,7 +189,7 @@ export function Metrics() {
 
       {error && (
         <p role="alert" className="rounded-xs border border-line bg-raised px-4 py-3 text-sm">
-          The evaluation failed: {error}
+          {error}
         </p>
       )}
 
@@ -188,6 +233,7 @@ export function Metrics() {
             />
           </div>
 
+          {source && <p className="-mb-2 font-mono text-sm text-text">{source}</p>}
           <p className="text-sm text-dim">
             {result.runs_per_scenario} {result.runs_per_scenario === 1 ? "run" : "runs"} per scenario ·{" "}
             <span className="text-text">{num(result.total_input_tokens)}</span> input tokens ·{" "}

@@ -137,6 +137,12 @@ export interface EvalResult {
   }[];
 }
 
+/** GET /eval/latest: the newest saved evaluation, with when and on which models it ran. */
+export type SavedEval = EvalResult & {
+  timestamp: string | null; // ISO 8601 UTC
+  models: { worker?: string; shadow?: string; judge?: string } | null;
+};
+
 /** GET /eval/progress: live progress of POST /eval. Only `running` is set before the first eval. */
 export interface EvalProgress {
   running: boolean;

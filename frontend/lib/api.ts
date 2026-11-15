@@ -6,6 +6,7 @@ import {
   RUN_EVENT_NAMES,
   type EvalProgress,
   type EvalResult,
+  type SavedEval,
   type Rule,
   type RunEvent,
   type RunOverrides,
@@ -68,6 +69,17 @@ export function getRules(): Promise<Rule[]> {
 /** Forget every learned rule. Part of the demo reset. */
 export function clearRules(): Promise<{ cleared: boolean }> {
   return USE_MOCK ? mock.clearRules() : request("/rules", { method: "DELETE" });
+}
+
+/** The newest saved evaluation, or null if none has been saved yet. */
+export async function getLatestEval(): Promise<SavedEval | null> {
+  if (USE_MOCK) return mock.getLatestEval();
+  try {
+    return await request<SavedEval>("/eval/latest");
+  } catch (e) {
+    if (e instanceof Error && /\b404\b|no saved eval/i.test(e.message)) return null;
+    throw e;
+  }
 }
 
 /** Progress of the evaluation in flight. Throws if the backend doesn't offer it. */
