@@ -104,6 +104,7 @@ def is_read_only_command(command: str) -> bool:
             return False
         if not words:
             continue
+        words[0] = os.path.basename(words[0])  # .venv/bin/pip list → pip list
         if words[0] not in READ_ONLY_COMMANDS and " ".join(words[:2]) not in READ_ONLY_COMMANDS:
             return False
     return bool(parts)

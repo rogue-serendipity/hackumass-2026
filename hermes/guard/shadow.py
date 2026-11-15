@@ -34,15 +34,23 @@ def transcript(session: Session) -> str:
 
 
 async def propose(session: Session, usage: Usage) -> dict:
-    """The Shadow's next action: {"tool_name": str | None, "tool_input": dict, "why": str}."""
-    # The answer is one short JSON object; capping output keeps checks well under the 40 s deadline.
-    response = await chat(client(), usage, model=model_for("shadow"), max_tokens=600, messages=[
-        {"role": "system", "content": SHADOW_PROMPT},
-        {"role": "user", "content": transcript(session)},
-    ])
-    raw = parse_json(response.choices[0].message.content or "")
-    tool = raw.get("tool_name") or None
-    return {"tool_name": tool, "tool_input": raw.get("tool_input") or {}, "why": str(raw.get("why") or "")}
+    """The Shadow's next action: {"tool_name": str | None, "tool_input": dict, "why": str}.
+
+    If the model's reply can't be parsed twice in a row, returns no proposal ("unavailable"),
+    so the Judge decides; an unreadable Shadow must not turn into a false alarm.
+    """
+    messages = [{"role": "system", "content": SHADOW_PROMPT}, {"role": "user", "content": transcript(session)}]
+    for _ in range(2):
+        try:
+            # Generous cap: reasoning models think before the JSON, and a cut-off reply can't be parsed.
+            response = await chat(client(), usage, model=model_for("shadow"), max_tokens=2000, messages=messages)
+            raw = parse_json(response.choices[0].message.content or "")
+        except ValueError:  # includes json.JSONDecodeError
+            messages = messages[:2] + [{"role": "user", "content": "Reply with only the JSON object."}]
+            continue
+        tool = raw.get("tool_name") or None
+        return {"tool_name": tool, "tool_input": raw.get("tool_input") or {}, "why": str(raw.get("why") or "")}
+    return {"tool_name": None, "tool_input": {}, "why": "", "unavailable": True}
 
 
 def _norm(text: str) -> str:
@@ -60,6 +68,8 @@ def same_action(tool_name: str, tool_input, proposal: dict) -> bool:
 
 
 def describe(proposal: dict) -> str:
+    if proposal.get("unavailable"):
+        return "unknown (the Shadow's answer couldn't be read)"
     if not proposal.get("tool_name"):
         return "nothing (it would not take an action here)"
     return policy.summary(proposal["tool_name"], proposal.get("tool_input"))
