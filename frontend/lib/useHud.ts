@@ -9,7 +9,7 @@ import { hudMockScript } from "@/lib/hudMock";
 // With ?mock=1 in the URL, plays a scripted run instead.
 
 export const GUARD = (process.env.NEXT_PUBLIC_GUARD_BASE ?? "http://127.0.0.1:8100").replace(/\/$/, "");
-const EVENTS = ["session_start", "observed", "checking", "allowed", "blocked", "sink_hit", "reset"];
+const EVENTS = ["session_start", "observed", "checking", "allowed", "blocked", "decided", "sink_hit", "reset"];
 
 export function useHud() {
   const [state, dispatch] = useReducer(hudReducer, initialHud);
@@ -34,14 +34,21 @@ export async function decideCheck(
     dispatch({ type: "event", event: "decided", data: { session_id: sessionId, check_id: checkId, decision, by: "user" } });
     return;
   }
+  let ok = false;
   try {
-    await fetch(`${GUARD}/hermes/decide`, {
+    const res = await fetch(`${GUARD}/hermes/decide`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: sessionId, check_id: checkId, decision }),
     });
+    ok = res.ok; // the guard's "decided" event updates the card
   } catch {
-    // If the guard can't be reached, it blocks when the wait runs out.
+    // Unreachable guard: it blocks when the wait runs out.
+  }
+  if (!ok) {
+    // 409: the wait already ended (timed out or decided elsewhere). Stop offering the buttons;
+    // the first decision wins, so this never overrides a real "decided" event.
+    dispatch({ type: "event", event: "decided", data: { session_id: sessionId, check_id: checkId, decision: "block", by: "timeout" } });
   }
 }
 

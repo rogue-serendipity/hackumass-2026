@@ -157,3 +157,12 @@ describe("hold-and-ask", () => {
     expect(menuBarTitle(s)).toBe("Blocked");
   });
 });
+
+describe("stream subscription", () => {
+  it("listens for every event the HUD handles", async () => {
+    const src = await import("node:fs").then((fs) => fs.readFileSync(new URL("./useHud.ts", import.meta.url), "utf8"));
+    for (const name of ["session_start", "observed", "checking", "allowed", "blocked", "decided", "sink_hit", "reset"]) {
+      expect(src).toContain(`"${name}"`);
+    }
+  });
+});
