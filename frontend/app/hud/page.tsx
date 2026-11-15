@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { HudActivity, HudBreach, HudPill } from "@/components/hud/HudPill";
 import { HudBlockCard } from "@/components/hud/HudBlockCard";
 import { menuBarTitle, pillStatus } from "@/lib/hud";
-import { useHud } from "@/lib/useHud";
+import { decideCheck, useHud } from "@/lib/useHud";
 
 // The Hermes HUD, shown by the Electron app in hermes/hud/. Live: follows the guard's event stream.
 // /hud?mock=1 plays a scripted run instead. /hud?menubar=1 is the macOS menu bar mode: the menu bar
@@ -60,7 +60,11 @@ export default function HudPage() {
       {state.sinkPreview !== null ? (
         <HudBreach preview={state.sinkPreview} onDismiss={dismiss} />
       ) : state.blocked ? (
-        <HudBlockCard blocked={state.blocked} onDismiss={dismiss} />
+        <HudBlockCard
+          blocked={state.blocked}
+          onDismiss={dismiss}
+          onDecide={(d) => state.blocked && decideCheck(dispatch, state.sessionId, state.blocked.check_id, d)}
+        />
       ) : open || menubar ? (
         <HudActivity state={state} />
       ) : null}

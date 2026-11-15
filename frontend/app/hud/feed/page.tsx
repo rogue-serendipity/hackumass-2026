@@ -15,13 +15,13 @@ import {
 import { HudBlockCard } from "@/components/hud/HudBlockCard";
 import type { CheckRow, HudState, TimelineItem } from "@/lib/hud";
 import { pillStatus, sourceLabel } from "@/lib/hud";
-import { resetGuard, useHud } from "@/lib/useHud";
+import { decideCheck, resetGuard, useHud } from "@/lib/useHud";
 
 // The big live view of the Tribunal watching Hermes, for a projector or a recording.
 // Everything Hermes reads and every action it tries, as it happens. /hud/feed?mock=1 plays a scripted run.
 
 export default function FeedPage() {
-  const [state] = useHud();
+  const [state, dispatch] = useHud();
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -84,7 +84,11 @@ export default function FeedPage() {
               {item.kind === "observed" ? (
                 <ReadRow item={item} />
               ) : (
-                <CheckItem state={state} checkId={item.check_id} />
+                <CheckItem
+                  state={state}
+                  checkId={item.check_id}
+                  onDecide={(d) => decideCheck(dispatch, state.sessionId, item.check_id, d)}
+                />
               )}
             </li>
           ))}
@@ -142,18 +146,28 @@ const ALLOW_WHY: Record<string, string> = {
   skip: "read-only, nothing to check",
   code: "no untrusted content involved",
   llm: "the Shadow would do the same",
+  user: "you allowed it once",
 };
 
-function CheckItem({ state, checkId }: { state: HudState; checkId: string }) {
+function CheckItem({
+  state,
+  checkId,
+  onDecide,
+}: {
+  state: HudState;
+  checkId: string;
+  onDecide: (d: "allow" | "block") => void;
+}) {
   const check = state.checks.find((c) => c.check_id === checkId);
   if (!check) return null;
   // File reads are checked only for tampering; the "Hermes read …" row already shows them.
   if (check.decision === "allow" && READ_TOOLS.has(check.tool_name)) return null;
   const block = state.blocks[checkId];
-  if (check.decision === "block" && block) {
+  if (block) {
+    // Held, blocked, or allowed once by the user: the card shows which.
     return (
       <div className="max-w-3xl">
-        <HudBlockCard blocked={block} />
+        <HudBlockCard blocked={block} onDecide={onDecide} />
       </div>
     );
   }

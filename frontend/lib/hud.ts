@@ -1,7 +1,7 @@
 // State for the Hermes HUD (/hud): a pill at the top of the screen that watches Hermes
 // through the Tribunal guard. Contract: shared/hermes_contract.md.
 
-export type GuardSource = "skip" | "code" | "llm" | "error";
+export type GuardSource = "skip" | "code" | "llm" | "error" | "user";
 
 export interface Culprit {
   source: string;
@@ -18,6 +18,10 @@ export interface BlockedInfo {
   explanation: string;
   culprit: Culprit | null;
   source: GuardSource;
+  // Hold-and-ask (H12): the guard is waiting for the user's Block / Allow once until decideBy (epoch ms).
+  awaitingUser: boolean;
+  decideBy: number | null;
+  userDecision: { decision: "allow" | "block"; by: "user" | "timeout" } | null;
 }
 
 export interface CheckRow {
@@ -139,6 +143,7 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
               check_id: c.check_id, tool_name: c.tool_name, summary: c.summary, shadow_summary: null,
               reason: cleanReason(c.reason ?? ""), explanation: cleanReason(c.reason ?? ""),
               culprit: c.culprit ?? null, source: (c.source || "llm") as GuardSource,
+              awaitingUser: false, decideBy: null, userDecision: null,
             }]),
         ),
         // The snapshot doesn't keep the interleaving, so show reads first, then checks.
@@ -203,6 +208,9 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
             explanation: cleanReason(str(d.explanation) || str(d.reason)),
             culprit: (d.culprit as Culprit | null) ?? null,
             source: (str(d.source) || "llm") as GuardSource,
+            awaitingUser: Boolean(d.awaiting_user),
+            decideBy: typeof d.decide_by === "number" ? d.decide_by : null,
+            userDecision: null,
           };
           return {
             ...s,
@@ -213,6 +221,25 @@ export function hudReducer(state: HudState, action: HudAction): HudState {
             blocked,
             blocks: { ...s.blocks, [blocked.check_id]: blocked },
             timeline: withCheckInTimeline(s, blocked.check_id),
+          };
+        }
+        case "decided": {
+          const s = forSession(state, d.session_id);
+          const id = str(d.check_id);
+          const prev = s.blocks[id];
+          if (!prev || prev.userDecision) return s; // first decision wins
+          const userDecision = {
+            decision: d.decision === "allow" ? "allow" : "block",
+            by: d.by === "user" ? "user" : "timeout",
+          } as const;
+          const updated: BlockedInfo = { ...prev, awaitingUser: false, userDecision };
+          return {
+            ...s,
+            blocks: { ...s.blocks, [id]: updated },
+            blocked: s.blocked?.check_id === id ? updated : s.blocked,
+            checks: userDecision.decision === "allow"
+              ? upsertCheck(s.checks, { check_id: id, tool_name: prev.tool_name, summary: prev.summary, decision: "allow", source: "user" })
+              : s.checks,
           };
         }
         case "sink_hit":
@@ -248,6 +275,8 @@ export type PillTone = "offline" | "idle" | "checking" | "ok" | "blocked" | "bre
 
 export function pillStatus(s: HudState): { tone: PillTone; text: string } {
   if (s.sinkPreview !== null) return { tone: "breach", text: "Data reached the sink: an attack got through" };
+  if (s.blocked?.awaitingUser) return { tone: "blocked", text: `Held: ${s.blocked.summary} (allow once or block?)` };
+  if (s.blocked?.userDecision?.decision === "allow") return { tone: "ok", text: `You allowed once: ${s.blocked.summary}` };
   if (s.blocked) return { tone: "blocked", text: `Blocked: ${s.blocked.summary}` };
   if (s.connection === "offline") return { tone: "offline", text: "Tribunal offline: Hermes actions are held" };
   if (s.connection === "connecting") return { tone: "offline", text: "Connecting to the Tribunal…" };
@@ -266,6 +295,7 @@ export function pillStatus(s: HudState): { tone: PillTone; text: string } {
 export function menuBarTitle(s: HudState): string {
   const { tone } = pillStatus(s);
   if (tone === "breach") return "Leak!";
+  if (s.blocked?.awaitingUser) return "Allow?";
   if (tone === "blocked" && s.blocked) return "Blocked";
   if (tone === "offline") return s.connection === "connecting" ? "…" : "Off";
   if (tone === "checking") return "Checking…";

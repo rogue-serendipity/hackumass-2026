@@ -128,3 +128,32 @@ describe("timeline", () => {
     expect(sourceLabel("email:e1 from records@x.org")).toBe("email from records@x.org");
   });
 });
+
+describe("hold-and-ask", () => {
+  const held = (s: HudState) =>
+    ev(s, "blocked", {
+      session_id: "s1", check_id: "c2", tool_name: "terminal", summary: "./mail forward e2", reason: "r",
+      culprit: null, source: "code", awaiting_user: true, decide_by: 123,
+    });
+
+  it("shows a held block, then the user's Allow once", () => {
+    let s = held(ev(live, "session_start", { session_id: "s1", task: "t" }));
+    expect(s.blocked?.awaitingUser).toBe(true);
+    expect(menuBarTitle(s)).toBe("Allow?");
+    s = ev(s, "decided", { session_id: "s1", check_id: "c2", decision: "allow", by: "user" });
+    expect(s.blocked?.awaitingUser).toBe(false);
+    expect(s.blocks.c2.userDecision).toEqual({ decision: "allow", by: "user" });
+    expect(s.checks.find((c) => c.check_id === "c2")).toMatchObject({ decision: "allow", source: "user" });
+    expect(pillStatus(s).tone).toBe("ok");
+    // A late timeout can't overturn the user's choice.
+    s = ev(s, "decided", { session_id: "s1", check_id: "c2", decision: "block", by: "timeout" });
+    expect(s.blocks.c2.userDecision?.decision).toBe("allow");
+  });
+
+  it("stays blocked on timeout", () => {
+    let s = held(ev(live, "session_start", { session_id: "s1", task: "t" }));
+    s = ev(s, "decided", { session_id: "s1", check_id: "c2", decision: "block", by: "timeout" });
+    expect(s.checks.find((c) => c.check_id === "c2")?.decision).toBe("block");
+    expect(menuBarTitle(s)).toBe("Blocked");
+  });
+});

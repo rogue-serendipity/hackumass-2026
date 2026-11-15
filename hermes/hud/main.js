@@ -107,6 +107,7 @@ function createWindow() {
     skipTaskbar: true,
     alwaysOnTop: true,
     backgroundColor: "#00000000",
+    acceptFirstMouse: true, // macOS: a click on the dropdown's Block / Allow once registers without focusing it first
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
