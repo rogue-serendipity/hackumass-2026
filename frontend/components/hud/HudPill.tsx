@@ -55,18 +55,18 @@ export function HudPill({
 }
 
 export function HudActivity({ state }: { state: HudState }) {
-  const recent = state.checks.slice(-6).reverse();
+  const recent = state.checks.filter((c) => c.tool_name !== "read_file" && c.tool_name !== "search_files").slice(-3).reverse(); // fits the 200 px dropdown
   return (
-    <div className="rounded-lg border border-line bg-panel/95 p-3 text-sm shadow-lg shadow-black/40 backdrop-blur">
+    <div className="overflow-hidden rounded-lg border border-line bg-panel/95 p-3 text-sm shadow-lg shadow-black/40 backdrop-blur">
       {state.task ? (
-        <p className="mb-2 line-clamp-2 text-dim">
+        <p className="mb-2 truncate text-dim">
           <span className="text-text">Task:</span> {state.task}
         </p>
       ) : (
         <p className="mb-2 text-dim">Waiting for Hermes to start a task.</p>
       )}
       {state.untrusted.length > 0 && (
-        <p className="mb-2 text-dim">
+        <p className="mb-2 truncate text-dim">
           Untrusted content read: {state.untrusted.map(sourceLabel).join(", ")}
         </p>
       )}

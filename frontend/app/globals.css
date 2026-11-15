@@ -173,6 +173,7 @@ mark[data-culprit] {
 html.hud,
 html.hud body {
   background: transparent;
+  overflow: hidden; /* the popup never scrolls */
 }
 
 @keyframes hud-card-in {

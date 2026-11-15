@@ -13,8 +13,8 @@ const MODE = process.env.TRIBUNAL_HUD_MODE || (process.platform === "darwin" ? "
 const BASE_URL = process.env.TRIBUNAL_HUD_URL || "http://localhost:3000/hud";
 const WIDTH = 576;
 const COLLAPSED = 64;
-const EXPANDED = 520;
-const DROPDOWN_HEIGHT = 470;
+const EXPANDED = 250; // pill + the compact block popup
+const DROPDOWN_HEIGHT = 200; // fits the compact block popup; it never scrolls
 
 let win;
 let tray;

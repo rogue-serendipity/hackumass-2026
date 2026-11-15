@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { HudActivity, HudBreach, HudPill } from "@/components/hud/HudPill";
-import { HudBlockCard } from "@/components/hud/HudBlockCard";
+import { HudBlockPopup } from "@/components/hud/HudBlockPopup";
 import { menuBarTitle, pillStatus } from "@/lib/hud";
 import { decideCheck, useHud } from "@/lib/useHud";
 
@@ -60,7 +60,7 @@ export default function HudPage() {
       {state.sinkPreview !== null ? (
         <HudBreach preview={state.sinkPreview} onDismiss={dismiss} />
       ) : state.blocked ? (
-        <HudBlockCard
+        <HudBlockPopup
           blocked={state.blocked}
           onDismiss={dismiss}
           onDecide={(d, remember) =>
