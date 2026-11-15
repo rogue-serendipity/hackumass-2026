@@ -35,7 +35,8 @@ def transcript(session: Session) -> str:
 
 async def propose(session: Session, usage: Usage) -> dict:
     """The Shadow's next action: {"tool_name": str | None, "tool_input": dict, "why": str}."""
-    response = await chat(client(), usage, model=model_for("shadow"), messages=[
+    # The answer is one short JSON object; capping output keeps checks well under the 40 s deadline.
+    response = await chat(client(), usage, model=model_for("shadow"), max_tokens=600, messages=[
         {"role": "system", "content": SHADOW_PROMPT},
         {"role": "user", "content": transcript(session)},
     ])
